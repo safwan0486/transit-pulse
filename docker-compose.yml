@@ -11,6 +11,7 @@ name: transit-pulse
 
 x-airflow-common: &airflow-common
   build: ./airflow
+  image: transit-pulse-airflow:local   # one image shared by all Airflow services
   env_file: .env
   environment: &airflow-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -22,9 +23,15 @@ x-airflow-common: &airflow-common
     AIRFLOW__WEBSERVER__WORKERS: "2"  # keep RAM low on laptops
     PYTHONPATH: /opt/airflow/ingestion
     S3_ENDPOINT_URL: http://lake:8333
+    S3_ENDPOINT_HOST: lake:8333          # DuckDB wants host:port without scheme
+    DUCKDB_PATH: /opt/airflow/warehouse/transit_pulse.duckdb
+    DBT_PROJECT_DIR: /opt/airflow/dbt
+    DBT_PROFILES_DIR: /opt/airflow/dbt
   volumes:
     - ./airflow/dags:/opt/airflow/dags
     - ./ingestion:/opt/airflow/ingestion:ro
+    - ./warehouse:/opt/airflow/dbt
+    - warehouse-data:/opt/airflow/warehouse
     - airflow-logs:/opt/airflow/logs
   user: "50000:0"
   depends_on:
@@ -175,5 +182,6 @@ volumes:
   redpanda-data:
   lake-data:
   spark-checkpoints:
+  warehouse-data:
   airflow-db-data:
   airflow-logs:

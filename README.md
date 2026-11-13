@@ -28,8 +28,9 @@ turns them into answers like:
               parse → validate → dedupe      quarantine/  rows that failed a check
                                              gold/        analytics marts
                                                      │
-                                    [phase 3] BigQuery + dbt
-                                             │
+                              dbt + DuckDB warehouse (hourly, via Airflow)
+                              staging → core facts/dims → performance marts
+                                                     │
                                     [phase 5] Dashboard
 ```
 
@@ -116,6 +117,68 @@ serialisation bug upstream). It is kept in silver as-is and excluded in modeling
 
 ---
 
+## Warehouse and metrics (dbt + DuckDB)
+
+dbt models in `warehouse/` read the silver Parquet **in place** from the lake (DuckDB
+`read_parquet` over S3, no copy) and build a star schema in a DuckDB file. Airflow's
+`transit_dbt_build` DAG runs `dbt build` hourly, so every model is tested before
+anything downstream uses it.
+
+```
+staging (views)            core (tables)                 performance (tables)
+stg_lake__vehicle_positions ─► fct_vehicle_positions
+stg_gtfs__stop_times ─┐        fct_stop_arrivals ──────┬─► mart_route_on_time_daily
+stg_gtfs__trips ──────┼─► int_gtfs__trip_stops ─┘      ├─► mart_network_delay_hourly
+stg_gtfs__stops ──────┘                                └─► mart_stop_headways ─► mart_route_headway_daily
+stg_gtfs__routes ────────► dim_route (SCD Type 2)
+                           dim_stop
+```
+
+### The core problem: the feeds don't say when a bus reached a stop
+
+GTFS-Realtime here only has GPS positions. `fct_stop_arrivals` infers stop visits by
+matching each ping to its trip's scheduled stops. Profiling the real data shaped the rules:
+
+| Finding | Rule it led to |
+|---|---|
+| **94% of MRT feeder trips are loops** (first stop = last stop), so a ping at the terminal matches two stop occurrences, which first produced a −26 to +24 min delay spread | Each ping is assigned to **one** stop occurrence: the one closest to its scheduled time. The spread tightened to −5 / +10 min (p10/p90). |
+| Outbound and return roads often run side by side | A ping must be ≤ 150 m from the stop. Matches > 30 min from schedule are treated as **mismatches, not delays**. |
+| Several pings near the same stop (dwelling) | Keep the closest ping per stop visit. |
+| MRT feeder's realtime `route_id` (`T852`) ≠ its own GTFS `route_id` (`30000068`), but `trip_id` matches 100% | Route always comes from the trip in the timetable. The public number lives in `route_long_name`, so `route_name` falls back to it. |
+| MRT feeder sends no trip start date | Service day is derived from local time (handles trips after midnight). |
+
+A warn-level test (`assert_stop_arrivals_in_order`) tracks matching quality. In the first
+run, 0.8% of visits were out of sequence.
+
+### Two kinds of service → two kinds of reliability metric
+
+| Operator | Timetable style | Metric |
+|---|---|---|
+| MRT feeder buses | Exact time per stop (`stop_times`) | **On-time performance**: delay = observed − scheduled. On time = 1 min early to 5 min late (industry standard). |
+| Rapid KL buses | "Every N minutes" (`frequencies`) | **Headway adherence**: bunching (< 0.5× scheduled gap), gaps (> 1.5×), and **Excess Wait Time**, the extra minutes a rider waits versus the schedule, as used by Transport for London |
+
+KTMB is excluded from performance metrics because its positions are frozen placeholders (see above).
+
+### Modeling choices
+- **`dim_route` is SCD Type 2, rebuilt from the daily GTFS snapshots in the lake**,
+  not from dbt snapshots, so history is reproducible no matter when dbt ran. Facts join
+  on `service_date ∈ [valid_from, valid_to)`.
+- **Each service day uses the timetable that was valid that day**
+  (`int_gtfs__snapshot_for_service_date`), so timetable changes don't rewrite history.
+- **Incremental facts** (`delete+insert`) reprocess a one-day lookback, so trips that
+  cross the cut-off are rebuilt completely.
+- **Tests:** 40+ data tests (uniqueness, ranges, SCD2 integrity, metric percentages that
+  must sum to 100), source freshness, and a **dbt unit test** for the headway logic
+  (bunching, gaps, and loop buses that must not count as a headway).
+
+Query the warehouse:
+
+```bash
+docker compose exec airflow-scheduler /opt/dbt-venv/bin/python -c "import duckdb; duckdb.connect('/opt/airflow/warehouse/transit_pulse.duckdb', read_only=True).sql('select * from performance.mart_route_on_time_daily order by pct_on_time limit 10').show()"
+```
+
+---
+
 ## Quick start
 
 **Requirements:** Docker Desktop (4 GB+ RAM allocated) and Python 3.11+ for tests.
@@ -168,7 +231,8 @@ CI runs both on every push and PR (`.github/workflows/ci.yml`).
 
 - [x] **Phase 1, Ingestion:** GTFS-RT producer → Kafka → bronze; Airflow GTFS static → bronze/silver
 - [x] **Phase 2, Stream processing:** Spark Structured Streaming: validation + quarantine, dedupe on `event_id` with event-time watermark, speed-unit fix, silver vehicle positions
-- [ ] **Phase 3, Warehouse and modeling:** BigQuery external tables + dbt (`dim_route` SCD2, `fct_vehicle_positions`, on-time performance marts)
+- [x] **Phase 3, Warehouse and modeling:** dbt on DuckDB (reads the lake in place): GPS→stop matching, `dim_route` SCD2, on-time performance and headway/Excess Wait Time marts, data and unit tests, hourly Airflow DAG
+- [ ] **Phase 3b, Cloud warehouse:** same dbt models on BigQuery (external tables over GCS), provisioned with Terraform
 - [ ] **Phase 4, Production hardening:** Terraform (GCS/BigQuery), data quality tests, alerting, pipeline health metrics, freshness checks (e.g. frozen KTMB positions), small-file compaction
 - [ ] **Phase 5, Serving:** dashboard (delay heatmap, worst routes, stop reliability map) and hosted dbt docs
 

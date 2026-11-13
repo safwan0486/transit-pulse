@@ -1,0 +1,57 @@
+version: 2
+
+models:
+  - name: stg_lake__vehicle_positions
+    description: One row per validated vehicle position (silver), with local time added.
+    columns:
+      - name: event_id
+        data_tests: [unique, not_null]
+      - name: feed
+        data_tests:
+          - accepted_values:
+              values: [rapid-bus-kl, rapid-bus-mrtfeeder, rapid-bus-kuantan, rapid-bus-penang, ktmb]
+      - name: latitude
+        data_tests:
+          - dbt_utils.accepted_range: {min_value: 0.5, max_value: 7.5}
+      - name: longitude
+        data_tests:
+          - dbt_utils.accepted_range: {min_value: 99.0, max_value: 120.0}
+      - name: speed_kmh
+        data_tests:
+          - dbt_utils.accepted_range: {min_value: 0, max_value: 160}
+
+  - name: stg_gtfs__routes
+    description: Routes from every daily GTFS snapshot (history kept for SCD2).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [feed, snapshot_date, route_id]
+
+  - name: stg_gtfs__stops
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [feed, snapshot_date, stop_id]
+    columns:
+      - name: stop_lat
+        data_tests: [not_null]
+      - name: stop_lon
+        data_tests: [not_null]
+
+  - name: stg_gtfs__trips
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [feed, snapshot_date, trip_id]
+
+  - name: stg_gtfs__stop_times
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [feed, snapshot_date, trip_id, stop_sequence]
+    columns:
+      - name: arrival_secs
+        data_tests:
+          - dbt_utils.accepted_range: {min_value: 0, max_value: 172800}  # GTFS allows > 24h
+
+  - name: stg_gtfs__frequencies
+    columns:
+      - name: headway_secs
+        data_tests:
+          - dbt_utils.accepted_range: {min_value: 60, max_value: 14400}

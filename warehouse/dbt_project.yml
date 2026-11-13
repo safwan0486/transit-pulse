@@ -1,0 +1,41 @@
+name: transit_pulse
+version: "0.3.0"
+config-version: 2
+profile: transit_pulse
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # Malaysia has no daylight saving, so a fixed offset is exact.
+  local_utc_offset_hours: 8
+  # A GPS ping counts as "at a stop" within this distance.
+  stop_match_radius_m: 150
+  # Matches further than this from the timetable are treated as mismatches
+  # (e.g. outbound/return roads that run side by side), not as delays.
+  max_abs_delay_minutes: 30
+  # Industry-standard on-time window for buses: up to 1 min early, 5 min late.
+  on_time_early_minutes: 1
+  on_time_late_minutes: 5
+  # Headways this far from schedule are "bunching" / "gaps".
+  bunching_ratio: 0.5
+  gap_ratio: 1.5
+  # KTMB positions are frozen placeholders (see README), so no performance metrics.
+  performance_feeds: ["rapid-bus-kl", "rapid-bus-mrtfeeder"]
+
+models:
+  transit_pulse:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    marts:
+      +materialized: table
+      core:
+        +schema: core
+      performance:
+        +schema: performance

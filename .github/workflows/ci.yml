@@ -20,6 +20,27 @@ jobs:
       - name: Unit tests
         run: pytest -v
 
+  dbt:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: warehouse
+    env:
+      # parse/compile only: no warehouse connection needed, so dummy credentials
+      DBT_PROFILES_DIR: .
+      DUCKDB_PATH: /tmp/ci.duckdb
+      AWS_ACCESS_KEY_ID: ci
+      AWS_SECRET_ACCESS_KEY: ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install dbt-core==1.9.1 dbt-duckdb==1.9.1 duckdb==1.1.3
+      - run: dbt deps
+      - name: Parse project (catches broken refs, YAML and Jinja)
+        run: dbt parse
+
   docker-build:
     runs-on: ubuntu-latest
     steps:

@@ -1,0 +1,100 @@
+version: 2
+
+models:
+  - name: fct_stop_arrivals
+    description: >
+      One row per vehicle visit to a scheduled stop, inferred from GPS pings.
+      Timetable service gets delay_secs; frequency service gets
+      running_time_deviation_secs (vs. its actual dispatch time).
+    columns:
+      - name: stop_visit_id
+        data_tests: [unique, not_null]
+      - name: schedule_type
+        data_tests:
+          - accepted_values: {values: [timetable, frequency]}
+      - name: distance_m
+        data_tests:
+          - dbt_utils.accepted_range: {min_value: 0, max_value: 150}
+      - name: delay_secs
+        description: Observed minus scheduled arrival (timetable service only).
+        data_tests:
+          - dbt_utils.accepted_range: {min_value: -1800, max_value: 1800}
+          - not_null:
+              config:
+                where: "schedule_type = 'timetable'"
+
+  - name: fct_vehicle_positions
+    columns:
+      - name: event_id
+        data_tests: [unique, not_null]
+
+  - name: dim_route
+    description: Routes as an SCD Type 2 dimension built from daily GTFS snapshots.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [feed, route_id, valid_from]
+    columns:
+      - name: route_version_key
+        data_tests: [unique, not_null]
+
+  - name: dim_stop
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [feed, stop_id]
+
+  - name: mart_route_on_time_daily
+    columns:
+      - name: pct_on_time
+        data_tests:
+          - dbt_utils.accepted_range: {min_value: 0, max_value: 100}
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [feed, service_date, route_id]
+      - dbt_utils.expression_is_true:
+          expression: "round(pct_on_time + pct_early + pct_late) = 100"
+
+  - name: mart_network_delay_hourly
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [feed, service_date, hour_local]
+
+  - name: mart_stop_headways
+    columns:
+      - name: actual_headway_secs
+        data_tests:
+          - dbt_utils.accepted_range: {min_value: 0, max_value: 14400, inclusive: true}
+
+  - name: mart_route_headway_daily
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [feed, service_date, route_id]
+
+unit_tests:
+  - name: headways_flag_bunching_and_gaps
+    description: >
+      20-minute scheduled headway. Bus B arrives 5 min after A (bunched), passes
+      again at 08:30 on a loop (same bus: not a headway), C follows on time,
+      then D comes 40 min later (a gap).
+    model: mart_stop_headways
+    given:
+      - input: ref('fct_stop_arrivals')
+        format: csv
+        rows: |
+          feed,service_date,snapshot_date,route_id,direction_id,stop_id,stop_sequence,trip_id,vehicle_id,observed_ts,observed_ts_local,schedule_type,is_first_stop,is_last_stop
+          rapid-bus-kl,2026-11-13,2026-11-11,U81,0,S1,5,t0,BUS_A,2026-11-13 00:00:00,2026-11-13 08:00:00,frequency,false,false
+          rapid-bus-kl,2026-11-13,2026-11-11,U81,0,S1,5,t0,BUS_B,2026-11-13 00:05:00,2026-11-13 08:05:00,frequency,false,false
+          rapid-bus-kl,2026-11-13,2026-11-11,U81,0,S1,5,t0,BUS_B,2026-11-13 00:30:00,2026-11-13 08:30:00,frequency,false,false
+          rapid-bus-kl,2026-11-13,2026-11-11,U81,0,S1,5,t0,BUS_C,2026-11-13 00:50:00,2026-11-13 08:50:00,frequency,false,false
+          rapid-bus-kl,2026-11-13,2026-11-11,U81,0,S1,5,t0,BUS_D,2026-11-13 01:30:00,2026-11-13 09:30:00,frequency,false,false
+      - input: ref('stg_gtfs__frequencies')
+        format: csv
+        rows: |
+          feed,snapshot_date,trip_id,headway_secs
+          rapid-bus-kl,2026-11-11,t0,1200
+    expect:
+      format: csv
+      rows: |
+        vehicle_id,prev_vehicle_id,actual_headway_secs,headway_ratio,is_bunched,is_gap
+        BUS_B,BUS_A,300,0.25,true,false
+        BUS_C,BUS_B,1200,1.0,false,false
+        BUS_D,BUS_C,2400,2.0,false,true

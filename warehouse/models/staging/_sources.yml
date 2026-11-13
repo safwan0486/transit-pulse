@@ -1,0 +1,37 @@
+version: 2
+
+# Silver layer of the data lake, read in place with DuckDB (no copy).
+# Partition folders (feed=…, event_date=…, dt=…) become columns via hive_partitioning.
+sources:
+  - name: lake
+    description: Silver Parquet in the S3-compatible data lake (SeaweedFS locally).
+    tables:
+      - name: vehicle_positions
+        description: >
+          Validated, deduplicated GTFS-Realtime vehicle positions written by the
+          Spark streaming job (spark/jobs/silver_vehicle_positions.py).
+        meta:
+          external_location: "read_parquet('s3://transit-lake/silver/vehicle_positions/*/*/*.parquet', hive_partitioning = true)"
+        loaded_at_field: event_ts
+        freshness:
+          warn_after: {count: 15, period: minute}
+          error_after: {count: 60, period: minute}
+        columns:
+          - name: event_id
+            data_tests: [not_null, unique]
+
+      - name: gtfs_routes
+        meta:
+          external_location: "read_parquet('s3://transit-lake/silver/gtfs_static/routes/*/*/*.parquet', hive_partitioning = true, union_by_name = true)"
+      - name: gtfs_stops
+        meta:
+          external_location: "read_parquet('s3://transit-lake/silver/gtfs_static/stops/*/*/*.parquet', hive_partitioning = true, union_by_name = true)"
+      - name: gtfs_trips
+        meta:
+          external_location: "read_parquet('s3://transit-lake/silver/gtfs_static/trips/*/*/*.parquet', hive_partitioning = true, union_by_name = true)"
+      - name: gtfs_stop_times
+        meta:
+          external_location: "read_parquet('s3://transit-lake/silver/gtfs_static/stop_times/*/*/*.parquet', hive_partitioning = true, union_by_name = true)"
+      - name: gtfs_frequencies
+        meta:
+          external_location: "read_parquet('s3://transit-lake/silver/gtfs_static/frequencies/*/*/*.parquet', hive_partitioning = true, union_by_name = true)"

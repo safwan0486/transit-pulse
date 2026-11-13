@@ -6,9 +6,12 @@ __pycache__/
 .ruff_cache/
 data/
 logs/
-# dbt (coming in phase 3)
+# dbt
 target/
 dbt_packages/
+.user.yml
+*.duckdb
+*.duckdb.wal
 # terraform (coming in phase 4)
 .terraform/
 *.tfstate*
