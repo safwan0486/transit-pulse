@@ -160,6 +160,27 @@ details.q .ans { padding: 0 16px 16px 50px; color: var(--ink-2); font-size: 15px
 td.used { font-weight: 600; color: var(--ink); white-space: nowrap; }
 .pill { display: inline-block; font: 500 11px/1.5 var(--font-mono); padding: 0 7px; border-radius: 999px; border: 1px solid var(--rule); color: var(--ink-2); white-space: nowrap; }
 
+/* ---------- build order ---------- */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--ink-2); }
+.tag { display: inline-block; font: 600 10.5px/1.6 var(--font-mono); letter-spacing: .05em; text-transform: uppercase; padding: 0 7px; border-radius: 4px; white-space: nowrap; }
+.tag.new { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+.tag.chg { color: var(--warn); background: var(--warn-soft); }
+.tag.gen { color: var(--muted); background: var(--code-bg); }
+.tag.del { color: #c0392b; background: color-mix(in srgb, #c0392b 12%, transparent); }
+.build-phase { display: grid; gap: 10px; }
+.build-phase > h3 { display: flex; align-items: center; gap: 10px; }
+.build-phase > h3::before { content: ""; width: 12px; height: 12px; border-radius: 50%; border: 3px solid var(--c); background: var(--surface); flex: none; }
+ol.build { list-style: none; margin: 0; padding: 0; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); overflow: hidden; }
+ol.build li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--rule); }
+ol.build li:last-child { border-bottom: 0; }
+ol.build .n { font: 500 13px/1.6 var(--font-mono); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+ol.build .row { display: grid; gap: 3px; min-width: 0; }
+ol.build .f { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font: 500 13.5px var(--font-mono); color: var(--ink); overflow-wrap: anywhere; }
+ol.build .why-line { font-size: 14px; color: var(--ink-2); }
+ol.build li.sub { background: var(--bg); }
+ol.build li.sub .why-line { font-style: normal; }
+.between { font-size: 14px; color: var(--ink-2); padding: 10px 14px; border: 1px dashed var(--rule); border-radius: 10px; }
+
 footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule); padding-top: 18px; }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 </style>
@@ -169,6 +190,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule)
     <div class="label">Route map</div>
     <ol>
       <li><a href="#overview"><span class="dot interchange" style="--c: var(--accent)"></span>The whole journey</a></li>
+      <li><a href="#build-order"><span class="dot interchange" style="--c: var(--accent)"></span>Build order</a></li>
       <li><a href="#phase-1"><span class="dot" style="--c: var(--p1)"></span>1 · Ingestion</a></li>
       <li><a href="#phase-2"><span class="dot" style="--c: var(--p2)"></span>2 · Stream processing</a></li>
       <li><a href="#phase-3"><span class="dot" style="--c: var(--p3)"></span>3 · Warehouse</a></li>
@@ -199,7 +221,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule)
       <div class="stack">
         <div class="eyebrow">Start here</div>
         <h2>The journey of one bus ping</h2>
-        <p>Follow a single GPS reading from bus <code>WVC3917</code> on route U8220. Every part of the project exists to move this one record forward, make it more trustworthy, or watch that it keeps moving.</p>
+        <p>The project handles <b>every</b> bus and train in the feeds: about 200–250 vehicles every 30 seconds, roughly 500 positions a minute. To make the path easy to follow, this section traces <b>one example</b> record, a GPS reading from bus <code>WVC3917</code> on route U8220. Every other vehicle's reading takes exactly the same path at the same time.</p>
       </div>
       <div class="flow" role="list">
         <div class="step" role="listitem" style="border-top: 3px solid var(--p1)"><b>data.gov.my</b><span>Publishes all bus positions as a protobuf file, updated every ~30 s</span></div>
@@ -234,6 +256,155 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule)
           </tbody>
         </table>
       </div>
+      <p><b>Live GPS comes from 3 feeds</b> (Rapid KL bus, MRT feeder bus, KTMB train), but <b>timetables come from 4</b>: Rapid KL rail (LRT, MRT and Monorail) publishes a timetable but no live positions on data.gov.my, so it is downloaded but can't be used for delay metrics yet.</p>
+    </section>
+
+    <!-- ============================================================ BUILD ORDER -->
+    <section id="build-order">
+      <div class="stack">
+        <div class="eyebrow">Reading order</div>
+        <h2>Build order: which file came first</h2>
+        <p>The files in the exact order they were written, phase by phase. Read the code in this order: each file only uses things from files above it. Later phases sometimes went back and <b>changed</b> an earlier file; those changes are listed in the phase where they happened, with the phase the file came from.</p>
+        <div class="legend">
+          <span><span class="tag new">new</span> file created in this phase</span>
+          <span><span class="tag chg">changed</span> existing file edited</span>
+          <span><span class="tag gen">generated</span> made by a tool, not written by hand</span>
+          <span><span class="tag del">deleted</span> removed</span>
+        </div>
+      </div>
+
+      <div class="build-phase" style="--c: var(--p1)">
+        <h3>Phase 1 · Ingestion</h3>
+        <ol class="build">
+          <li><span class="n">1</span><div class="row"><div class="f">docker-compose.yml <span class="tag new">new</span></div><div class="why-line">The plan first: which services exist (Kafka, lake, Airflow) and how they connect.</div></div></li>
+          <li><span class="n">2</span><div class="row"><div class="f">.env.example <span class="tag new">new</span></div><div class="why-line">Settings every service reads: lake login, topic name, which feeds to poll.</div></div></li>
+          <li><span class="n">3</span><div class="row"><div class="f">.gitignore <span class="tag new">new</span></div><div class="why-line">Keeps <code>.env</code> and caches out of Git from the start.</div></div></li>
+          <li><span class="n">4</span><div class="row"><div class="f">ingestion/transit/__init__.py <span class="tag new">new</span></div><div class="why-line">Makes <code>transit</code> a Python package so the other files can import each other.</div></div></li>
+          <li><span class="n">5</span><div class="row"><div class="f">ingestion/transit/feeds.py <span class="tag new">new</span></div><div class="why-line">Where the data comes from. Everything else needs these URLs.</div></div></li>
+          <li><span class="n">6</span><div class="row"><div class="f">ingestion/transit/lake.py <span class="tag new">new</span></div><div class="why-line">Where the data goes: read/write helpers for the S3 lake.</div></div></li>
+          <li><span class="n">7</span><div class="row"><div class="f">ingestion/transit/http.py <span class="tag new">new</span></div><div class="why-line">A web client with retries, used to call data.gov.my.</div></div></li>
+          <li><span class="n">8</span><div class="row"><div class="f">ingestion/transit/gtfs_rt.py <span class="tag new">new</span></div><div class="why-line">Decodes the live feed. Needed before anything can be sent to Kafka.</div></div></li>
+          <li><span class="n">9</span><div class="row"><div class="f">ingestion/transit/producer.py <span class="tag new">new</span></div><div class="why-line">Uses 5, 7 and 8: polls the API every 30 s and sends records to Kafka.</div></div></li>
+          <li><span class="n">10</span><div class="row"><div class="f">ingestion/transit/bronze_sink.py <span class="tag new">new</span></div><div class="why-line">Uses 6: reads Kafka and saves raw Parquet to bronze.</div></div></li>
+          <li><span class="n">11</span><div class="row"><div class="f">ingestion/requirements.txt <span class="tag new">new</span></div><div class="why-line">Pins the libraries 5–10 import.</div></div></li>
+          <li><span class="n">12</span><div class="row"><div class="f">ingestion/Dockerfile <span class="tag new">new</span></div><div class="why-line">Packages 4–11 into an image for the producer and sink containers.</div></div></li>
+          <li><span class="n">13</span><div class="row"><div class="f">ingestion/transit/gtfs_static.py <span class="tag new">new</span></div><div class="why-line">The timetable side: download, validate and convert the daily zip files.</div></div></li>
+          <li><span class="n">14</span><div class="row"><div class="f">airflow/dags/gtfs_static_ingest.py <span class="tag new">new</span></div><div class="why-line">Schedules 13 every morning, one task per feed.</div></div></li>
+          <li><span class="n">15</span><div class="row"><div class="f">airflow/Dockerfile <span class="tag new">new</span></div><div class="why-line">The Airflow image with the extra libraries 14 needs.</div></div></li>
+          <li><span class="n">16</span><div class="row"><div class="f">airflow/requirements.txt <span class="tag new">new</span></div><div class="why-line">The list of those libraries.</div></div></li>
+          <li><span class="n">17</span><div class="row"><div class="f">tests/test_gtfs_rt.py <span class="tag new">new</span></div><div class="why-line">Tests for 8 (decoding, missing fields).</div></div></li>
+          <li><span class="n">18</span><div class="row"><div class="f">tests/test_gtfs_static.py <span class="tag new">new</span></div><div class="why-line">Tests for 13 (validation, CSV quirks).</div></div></li>
+          <li><span class="n">19</span><div class="row"><div class="f">tests/test_bronze_sink.py <span class="tag new">new</span></div><div class="why-line">Tests for 10 (folder layout, schema).</div></div></li>
+          <li><span class="n">20</span><div class="row"><div class="f">pyproject.toml <span class="tag new">new</span></div><div class="why-line">Tells pytest where the code is, and sets the lint rules.</div></div></li>
+          <li><span class="n">21</span><div class="row"><div class="f">requirements-dev.txt <span class="tag new">new</span></div><div class="why-line">What you install to run tests and lint locally.</div></div></li>
+          <li><span class="n">22</span><div class="row"><div class="f">.github/workflows/ci.yml <span class="tag new">new</span></div><div class="why-line">Runs lint, tests and Docker builds on every push.</div></div></li>
+          <li><span class="n">23</span><div class="row"><div class="f">README.md <span class="tag new">new</span></div><div class="why-line">Explains the project. Updated at the end of every phase after this.</div></div></li>
+          <li class="sub"><span class="n">24</span><div class="row"><div class="f">infra/seaweedfs/s3.json <span class="tag new">new</span></div><div class="why-line">Added when MinIO's images couldn't be downloaded and the lake switched to SeaweedFS.</div></div></li>
+          <li class="sub"><span class="n">25</span><div class="row"><div class="f">docker-compose.yml · .env.example <span class="tag chg">changed</span></div><div class="why-line">MinIO replaced by SeaweedFS; less memory for Redpanda and Airflow (Docker had ~3.9 GB).</div></div></li>
+        </ol>
+      </div>
+
+      <div class="build-phase" style="--c: var(--p2)">
+        <h3>Phase 2 · Stream processing</h3>
+        <ol class="build">
+          <li><span class="n">1</span><div class="row"><div class="f">spark/Dockerfile <span class="tag new">new</span></div><div class="why-line">The Spark image with Kafka and S3 connectors. Without it nothing below can run.</div></div></li>
+          <li><span class="n">2</span><div class="row"><div class="f">spark/jobs/__init__.py <span class="tag new">new</span></div><div class="why-line">Makes <code>jobs</code> an importable package (the file is empty).</div></div></li>
+          <li><span class="n">3</span><div class="row"><div class="f">spark/jobs/transforms.py <span class="tag new">new</span></div><div class="why-line">The cleaning rules, written before the job so they can be tested on their own.</div></div></li>
+          <li><span class="n">4</span><div class="row"><div class="f">spark/jobs/silver_vehicle_positions.py <span class="tag new">new</span></div><div class="why-line">The running job: connects Kafka → 3 → silver and quarantine.</div></div></li>
+          <li><span class="n">5</span><div class="row"><div class="f">spark/conftest.py <span class="tag new">new</span></div><div class="why-line">A shared local Spark session for tests.</div></div></li>
+          <li><span class="n">6</span><div class="row"><div class="f">spark/tests/test_transforms.py <span class="tag new">new</span></div><div class="why-line">Tests for 3, including a real streaming test.</div></div></li>
+          <li class="sub"><span class="n">7</span><div class="row"><div class="f">docker-compose.yml · .env.example <span class="tag chg">changed · from phase 1</span></div><div class="why-line">Added the <code>spark-streaming</code> service and its settings; later a checkpoint volume and the SeaweedFS 4.53 upgrade.</div></div></li>
+          <li class="sub"><span class="n">8</span><div class="row"><div class="f">ci.yml · README.md <span class="tag chg">changed · from phase 1</span></div><div class="why-line">CI builds the Spark image and runs its tests; README gets the data quality findings.</div></div></li>
+        </ol>
+      </div>
+
+      <div class="between"><b>Between phases 2 and 3:</b> the project moved to <code>Documents\transit-pulse</code> and Git was set up. <code>.gitattributes</code> <span class="tag new">new</span> was added to keep Linux line endings, and <code>docker-compose.yml</code> <span class="tag chg">changed</span> got a fixed project name. Phases 1 and 2 were saved together in the first commit.</div>
+
+      <div class="build-phase" style="--c: var(--p3)">
+        <h3>Phase 3 · Warehouse (dbt)</h3>
+        <ol class="build">
+          <li><span class="n">1</span><div class="row"><div class="f">warehouse/dbt_project.yml <span class="tag new">new</span></div><div class="why-line">The dbt project itself: folders, materializations and the rule variables.</div></div></li>
+          <li><span class="n">2</span><div class="row"><div class="f">warehouse/profiles.yml <span class="tag new">new</span></div><div class="why-line">How dbt connects to DuckDB and the lake.</div></div></li>
+          <li><span class="n">3</span><div class="row"><div class="f">warehouse/packages.yml <span class="tag new">new</span></div><div class="why-line">Adds <code>dbt_utils</code> for extra tests.</div></div></li>
+          <li><span class="n">4</span><div class="row"><div class="f">warehouse/macros/transit_helpers.sql <span class="tag new">new</span></div><div class="why-line">Helper functions (time parsing, GPS distance) that models below use.</div></div></li>
+          <li><span class="n">5</span><div class="row"><div class="f">models/staging/_sources.yml <span class="tag new">new</span></div><div class="why-line">Tells dbt where the silver files are. Every staging model reads from here.</div></div></li>
+          <li><span class="n">6</span><div class="row"><div class="f">models/staging/stg_lake__vehicle_positions.sql <span class="tag new">new</span></div><div class="why-line">Clean view of live GPS.</div></div></li>
+          <li><span class="n">7</span><div class="row"><div class="f">stg_gtfs__routes · stops · trips · stop_times · frequencies.sql <span class="tag new">new</span></div><div class="why-line">Clean views of the five timetable tables, in that order.</div></div></li>
+          <li><span class="n">8</span><div class="row"><div class="f">models/staging/_staging.yml <span class="tag new">new</span></div><div class="why-line">Tests for 6 and 7.</div></div></li>
+          <li><span class="n">9</span><div class="row"><div class="f">intermediate/int_gtfs__snapshot_for_service_date.sql <span class="tag new">new</span></div><div class="why-line">Picks the right timetable version for each day.</div></div></li>
+          <li><span class="n">10</span><div class="row"><div class="f">intermediate/int_gtfs__trip_stops.sql <span class="tag new">new</span></div><div class="why-line">Joins trips, stops and stop times into one table the fact below needs.</div></div></li>
+          <li><span class="n">11</span><div class="row"><div class="f">marts/core/fct_stop_arrivals.sql <span class="tag new">new</span></div><div class="why-line">GPS → stop visits with delay, using 9 and 10. The hardest model.</div></div></li>
+          <li><span class="n">12</span><div class="row"><div class="f">marts/core/fct_vehicle_positions.sql <span class="tag new">new</span></div><div class="why-line">Every position with its route from the timetable.</div></div></li>
+          <li><span class="n">13</span><div class="row"><div class="f">marts/core/dim_route.sql <span class="tag new">new</span></div><div class="why-line">Routes with history (SCD Type 2).</div></div></li>
+          <li><span class="n">14</span><div class="row"><div class="f">marts/core/dim_stop.sql <span class="tag new">new</span></div><div class="why-line">Current stops.</div></div></li>
+          <li><span class="n">15</span><div class="row"><div class="f">performance/mart_route_on_time_daily.sql <span class="tag new">new</span></div><div class="why-line">On-time % per MRT feeder route per day (from 11 and 13).</div></div></li>
+          <li><span class="n">16</span><div class="row"><div class="f">performance/mart_network_delay_hourly.sql <span class="tag new">new</span></div><div class="why-line">The same per hour, for the heatmap.</div></div></li>
+          <li><span class="n">17</span><div class="row"><div class="f">performance/mart_stop_headways.sql <span class="tag new">new</span></div><div class="why-line">First version of Rapid KL bus spacing, measured at stops. Deleted in Phase 5.</div></div></li>
+          <li><span class="n">18</span><div class="row"><div class="f">performance/mart_route_headway_daily.sql <span class="tag new">new</span></div><div class="why-line">Daily bus-spacing summary per route (from 17).</div></div></li>
+          <li><span class="n">19</span><div class="row"><div class="f">models/marts/_marts.yml <span class="tag new">new</span></div><div class="why-line">Tests for 11–18, plus the unit test.</div></div></li>
+          <li><span class="n">20</span><div class="row"><div class="f">tests/assert_dim_route_valid_scd2.sql <span class="tag new">new</span></div><div class="why-line">Custom test for 13.</div></div></li>
+          <li><span class="n">21</span><div class="row"><div class="f">tests/assert_stop_arrivals_in_order.sql <span class="tag new">new</span></div><div class="why-line">Custom warning test for 11's matching quality.</div></div></li>
+          <li><span class="n">22</span><div class="row"><div class="f">airflow/Dockerfile <span class="tag chg">changed · from phase 1</span></div><div class="why-line">Installs dbt in its own environment inside the Airflow image.</div></div></li>
+          <li><span class="n">23</span><div class="row"><div class="f">airflow/dags/transit_dbt_build.py <span class="tag new">new</span></div><div class="why-line">Runs <code>dbt build</code> every hour.</div></div></li>
+          <li><span class="n">24</span><div class="row"><div class="f">docker-compose.yml <span class="tag chg">changed · from phase 1</span></div><div class="why-line">Mounts the dbt project and warehouse into Airflow; one shared Airflow image; dbt settings.</div></div></li>
+          <li class="sub"><span class="n">25</span><div class="row"><div class="f">warehouse/package-lock.yml <span class="tag gen">generated</span></div><div class="why-line">Written by <code>dbt deps</code> to pin the exact package version.</div></div></li>
+          <li class="sub"><span class="n">26</span><div class="row"><div class="f">.gitignore · ci.yml · README.md <span class="tag chg">changed · from phase 1</span></div><div class="why-line">Ignore DuckDB files; CI parses the dbt project; README gets the warehouse section.</div></div></li>
+        </ol>
+      </div>
+
+      <div class="build-phase" style="--c: var(--p4)">
+        <h3>Phase 4 · Hardening</h3>
+        <ol class="build">
+          <li><span class="n">1</span><div class="row"><div class="f">models/marts/monitoring/mart_feed_health_hourly.sql <span class="tag new">new</span></div><div class="why-line">Measures feed health per hour (frozen vehicles, trip match rate).</div></div></li>
+          <li><span class="n">2</span><div class="row"><div class="f">models/marts/monitoring/_monitoring.yml <span class="tag new">new</span></div><div class="why-line">Tests for 1.</div></div></li>
+          <li><span class="n">3</span><div class="row"><div class="f">tests/assert_feeds_not_frozen.sql · assert_trip_match_rate.sql <span class="tag new">new</span></div><div class="why-line">Warning tests that read 1.</div></div></li>
+          <li><span class="n">4</span><div class="row"><div class="f">warehouse/dbt_project.yml <span class="tag chg">changed · from phase 3</span></div><div class="why-line">Thresholds for 3 and the new <code>monitoring</code> schema.</div></div></li>
+          <li><span class="n">5</span><div class="row"><div class="f">ingestion/transit/alerts.py <span class="tag new">new</span></div><div class="why-line">Sends messages to Discord/Slack. Built before the checks that use it.</div></div></li>
+          <li><span class="n">6</span><div class="row"><div class="f">ingestion/transit/health.py <span class="tag new">new</span></div><div class="why-line">The five end-to-end checks.</div></div></li>
+          <li><span class="n">7</span><div class="row"><div class="f">airflow/dags/pipeline_health.py <span class="tag new">new</span></div><div class="why-line">Runs 6 every 15 min and alerts with 5 on state changes.</div></div></li>
+          <li><span class="n">8</span><div class="row"><div class="f">airflow/dags/gtfs_static_ingest.py <span class="tag chg">changed · from phase 1</span></div><div class="why-line">Alerts when a task fails (uses 5).</div></div></li>
+          <li><span class="n">9</span><div class="row"><div class="f">airflow/dags/transit_dbt_build.py <span class="tag chg">changed · from phase 3</span></div><div class="why-line">The same failure alert.</div></div></li>
+          <li><span class="n">10</span><div class="row"><div class="f">airflow/requirements.txt <span class="tag chg">changed · from phase 1</span></div><div class="why-line">Adds <code>confluent-kafka</code> so 6 can read Kafka lag.</div></div></li>
+          <li><span class="n">11</span><div class="row"><div class="f">docker-compose.yml · .env.example <span class="tag chg">changed · from phase 1</span></div><div class="why-line">Kafka address for Airflow; the <code>ALERT_WEBHOOK_URL</code> setting.</div></div></li>
+          <li><span class="n">12</span><div class="row"><div class="f">tests/test_alerts_health.py <span class="tag new">new</span></div><div class="why-line">Tests for 5 and 6.</div></div></li>
+          <li><span class="n">13</span><div class="row"><div class="f">ingestion/transit/compaction.py <span class="tag new">new</span></div><div class="why-line">Merges small bronze files safely.</div></div></li>
+          <li><span class="n">14</span><div class="row"><div class="f">tests/test_compaction.py <span class="tag new">new</span></div><div class="why-line">Tests for 13.</div></div></li>
+          <li><span class="n">15</span><div class="row"><div class="f">airflow/dags/bronze_compaction.py <span class="tag new">new</span></div><div class="why-line">Runs 13 every hour.</div></div></li>
+          <li><span class="n">16</span><div class="row"><div class="f">infra/terraform/versions.tf <span class="tag new">new</span></div><div class="why-line">Which Terraform and Google provider versions to use.</div></div></li>
+          <li><span class="n">17</span><div class="row"><div class="f">infra/terraform/variables.tf <span class="tag new">new</span></div><div class="why-line">The inputs (project id, region, retention days).</div></div></li>
+          <li><span class="n">18</span><div class="row"><div class="f">infra/terraform/main.tf <span class="tag new">new</span></div><div class="why-line">The resources themselves: bucket, BigQuery datasets, service account, budget.</div></div></li>
+          <li><span class="n">19</span><div class="row"><div class="f">infra/terraform/outputs.tf <span class="tag new">new</span></div><div class="why-line">What Terraform prints after creating 18.</div></div></li>
+          <li><span class="n">20</span><div class="row"><div class="f">infra/terraform/terraform.tfvars.example <span class="tag new">new</span></div><div class="why-line">An example to copy and fill in.</div></div></li>
+          <li class="sub"><span class="n">21</span><div class="row"><div class="f">infra/terraform/.terraform.lock.hcl <span class="tag gen">generated</span></div><div class="why-line">Written by <code>terraform init</code> to pin exact provider builds.</div></div></li>
+          <li class="sub"><span class="n">22</span><div class="row"><div class="f">.gitignore · ci.yml · README.md <span class="tag chg">changed · from phase 1</span></div><div class="why-line">Ignore Terraform secrets; CI checks Terraform; README gets the operations section.</div></div></li>
+        </ol>
+      </div>
+
+      <div class="build-phase" style="--c: var(--p5)">
+        <h3>Phase 5 · Dashboard</h3>
+        <ol class="build">
+          <li><span class="n">1</span><div class="row"><div class="f">warehouse/macros/export_gold.sql <span class="tag new">new</span></div><div class="why-line">Exports summary tables to gold. The dashboard can't start without data to read.</div></div></li>
+          <li><span class="n">2</span><div class="row"><div class="f">warehouse/dbt_project.yml <span class="tag chg">changed · from phase 3</span></div><div class="why-line">Runs 1 automatically after every build (<code>on-run-end</code>).</div></div></li>
+          <li><span class="n">3</span><div class="row"><div class="f">dashboard/data.py <span class="tag new">new</span></div><div class="why-line">All the queries. Built before the page so it can be tested alone.</div></div></li>
+          <li><span class="n">4</span><div class="row"><div class="f">dashboard/theme.py <span class="tag new">new</span></div><div class="why-line">Colors and chart style the page uses.</div></div></li>
+          <li><span class="n">5</span><div class="row"><div class="f">dashboard/app.py <span class="tag new">new</span></div><div class="why-line">The page itself, using 3 and 4.</div></div></li>
+          <li><span class="n">6</span><div class="row"><div class="f">dashboard/.streamlit/config.toml <span class="tag new">new</span></div><div class="why-line">Streamlit theme and settings.</div></div></li>
+          <li><span class="n">7</span><div class="row"><div class="f">dashboard/requirements.txt · Dockerfile <span class="tag new">new</span></div><div class="why-line">Packages the dashboard as a container.</div></div></li>
+          <li><span class="n">8</span><div class="row"><div class="f">docker-compose.yml <span class="tag chg">changed · from phase 1</span></div><div class="why-line">Adds the <code>dashboard</code> service on port 8501.</div></div></li>
+          <li><span class="n">9</span><div class="row"><div class="f">tests/test_dashboard_data.py <span class="tag new">new</span></div><div class="why-line">Tests for 3 with small local files.</div></div></li>
+          <li><span class="n">10</span><div class="row"><div class="f">pyproject.toml · requirements-dev.txt <span class="tag chg">changed · from phase 1</span></div><div class="why-line">Lets pytest find the dashboard code; adds DuckDB and pandas for 9.</div></div></li>
+          <li><span class="n">11</span><div class="row"><div class="f">spark/jobs/silver_vehicle_positions.py <span class="tag chg">changed · from phase 2</span></div><div class="why-line">Found while testing the map: Spark wrote too many small files. Now groups rows by feed before writing.</div></div></li>
+          <li><span class="n">12</span><div class="row"><div class="f">intermediate/int_frequency_dispatches.sql <span class="tag new">new</span></div><div class="why-line">The fix for the inflated wait-time metric: Rapid KL departures from the feed.</div></div></li>
+          <li><span class="n">13</span><div class="row"><div class="f">performance/mart_dispatch_headways.sql <span class="tag new">new</span></div><div class="why-line">Bus spacing from 12 (replaces Phase 3's step 17).</div></div></li>
+          <li><span class="n">14</span><div class="row"><div class="f">performance/mart_stop_headways.sql <span class="tag del">deleted · from phase 3</span></div><div class="why-line">The stop-based method that overstated gaps about 2×.</div></div></li>
+          <li><span class="n">15</span><div class="row"><div class="f">performance/mart_route_headway_daily.sql <span class="tag chg">changed · from phase 3</span></div><div class="why-line">Now reads 13, and adds "% evenly spaced".</div></div></li>
+          <li><span class="n">16</span><div class="row"><div class="f">models/marts/_marts.yml <span class="tag chg">changed · from phase 3</span></div><div class="why-line">New tests and a rewritten unit test for 13.</div></div></li>
+          <li class="sub"><span class="n">17</span><div class="row"><div class="f">docs/dashboard.png <span class="tag gen">generated</span></div><div class="why-line">Screenshot taken by a headless browser for the README.</div></div></li>
+          <li class="sub"><span class="n">18</span><div class="row"><div class="f">ci.yml · README.md <span class="tag chg">changed · from phase 1</span></div><div class="why-line">CI builds the dashboard image; README gets the dashboard section and the screenshot.</div></div></li>
+        </ol>
+      </div>
+
+      <div class="between"><b>After phase 5:</b> <code>docs/study-guide.html</code> <span class="tag new">new</span>, this guide.</div>
     </section>
 
     <!-- ============================================================ PHASE 1 -->
