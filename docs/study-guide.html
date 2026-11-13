@@ -1,0 +1,736 @@
+<title>Transit Pulse Field Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: a transit "line diagram" — phases are stations on one route; a sticky route map on wide screens, stacked on phones. */
+:root {
+  --bg: #f6f7f5;
+  --surface: #ffffff;
+  --ink: #15191c;
+  --ink-2: #4a5157;
+  --muted: #7b838a;
+  --rule: #dfe3e1;
+  --accent: #0f6e6a;          /* route line */
+  --accent-soft: #e2f0ee;
+  --code-bg: #eef1ef;
+  --warn: #9a5b00;
+  --warn-soft: #fbf1df;
+  --good: #1f7a3a;
+  --p1: #2a78d6; --p2: #eb6834; --p3: #1baf7a; --p4: #6250d6; --p5: #c2408a;
+  --font-display: "Space Grotesk", "IBM Plex Sans", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111416; --surface: #181c1f; --ink: #eef1ef; --ink-2: #bcc4c8; --muted: #8b949a;
+    --rule: #2b3135; --accent: #4fc2b9; --accent-soft: #15302e; --code-bg: #1f2427;
+    --warn: #f0b25a; --warn-soft: #2f2615; --good: #5fcf7e;
+    --p1: #3987e5; --p2: #e5733f; --p3: #2bbf8a; --p4: #9085e9; --p5: #e06aaa;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111416; --surface: #181c1f; --ink: #eef1ef; --ink-2: #bcc4c8; --muted: #8b949a;
+  --rule: #2b3135; --accent: #4fc2b9; --accent-soft: #15302e; --code-bg: #1f2427;
+  --warn: #f0b25a; --warn-soft: #2f2615; --good: #5fcf7e;
+  --p1: #3987e5; --p2: #e5733f; --p3: #2bbf8a; --p4: #9085e9; --p5: #e06aaa;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.6;
+}
+.wrap {
+  max-width: 1180px; margin: 0 auto;
+  padding-block: 32px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px;
+}
+@media (max-width: 900px) { .wrap { grid-template-columns: minmax(0, 1fr); gap: 24px; } }
+
+/* ---------- route map nav ---------- */
+nav.route { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; }
+@media (max-width: 900px) { nav.route { position: static; } }
+nav.route .label { font: 500 12px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+nav.route ol { list-style: none; margin: 0; padding: 0; position: relative; }
+nav.route ol::before { content: ""; position: absolute; left: 7px; top: 8px; bottom: 8px; width: 3px; background: var(--rule); border-radius: 2px; }
+nav.route li a {
+  display: grid; grid-template-columns: 17px 1fr; gap: 12px; align-items: center;
+  padding: 7px 0; color: var(--ink-2); text-decoration: none; font-size: 14px;
+}
+nav.route li a:hover, nav.route li a:focus-visible { color: var(--ink); }
+nav.route a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+nav.route .dot { width: 17px; height: 17px; border-radius: 50%; background: var(--surface); border: 3px solid var(--c, var(--muted)); position: relative; z-index: 1; }
+nav.route .dot.interchange { border-width: 4px; }
+@media (max-width: 900px) {
+  nav.route ol { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  nav.route ol::before { display: none; }
+  nav.route li a { grid-template-columns: 13px auto; gap: 6px; padding: 2px 0; }
+  nav.route .dot { width: 13px; height: 13px; border-width: 3px; }
+}
+
+/* ---------- type ---------- */
+h1, h2, h3, h4 { font-family: var(--font-display); line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(32px, 5vw, 46px); font-weight: 700; letter-spacing: -.01em; }
+h2 { font-size: clamp(24px, 3.4vw, 30px); font-weight: 700; }
+h3 { font-size: 19px; font-weight: 600; }
+h4 { font-size: 15px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+.lede { font-size: 18px; color: var(--ink-2); max-width: 64ch; }
+.eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+code, .mono { font-family: var(--font-mono); font-size: .88em; }
+code { background: var(--code-bg); padding: .1em .35em; border-radius: 4px; overflow-wrap: anywhere; }
+a { color: var(--accent); }
+main { min-width: 0; display: grid; gap: 72px; }
+section { display: grid; gap: 24px; scroll-margin-top: 24px; }
+.stack { display: grid; gap: 14px; }
+
+/* ---------- header ---------- */
+header.top { display: grid; gap: 16px; padding-bottom: 8px; }
+.how-to { display: flex; flex-wrap: wrap; gap: 8px 22px; color: var(--ink-2); font-size: 14px; }
+.how-to span::before { content: "→ "; color: var(--accent); }
+
+/* ---------- station header for phases ---------- */
+.station { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: start; border-top: 3px solid var(--c); padding-top: 18px; }
+.badge {
+  font: 700 15px/1 var(--font-display); color: #fff; background: var(--c);
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+}
+.station .meta { display: grid; gap: 6px; min-width: 0; }
+
+/* ---------- flow ---------- */
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+.flow .step { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; font-size: 14px; min-width: 0; flex: 1 1 150px; display: grid; gap: 2px; }
+.flow .step b { font-family: var(--font-display); font-size: 14px; }
+.flow .step span { color: var(--ink-2); font-size: 13px; line-height: 1.45; }
+.flow .arrow { align-self: center; color: var(--muted); font-family: var(--font-mono); }
+@media (max-width: 640px) { .flow .arrow { display: none; } .flow .step { flex-basis: 100%; } }
+ol.steps { margin: 0; padding-left: 22px; display: grid; gap: 8px; max-width: 72ch; }
+ol.steps li::marker { font-family: var(--font-mono); color: var(--muted); }
+
+/* ---------- file table ---------- */
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font: 500 12px/1.3 var(--font-mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+td.file { font-family: var(--font-mono); font-size: 13px; white-space: nowrap; color: var(--ink); }
+td .kw { display: inline-block; font: 500 11px/1.4 var(--font-mono); color: var(--accent); background: var(--accent-soft); padding: 1px 6px; border-radius: 4px; margin: 2px 4px 0 0; }
+tr.group td { background: var(--bg); font: 600 13px var(--font-display); color: var(--ink-2); padding-block: 7px; }
+
+/* ---------- why cards ---------- */
+.why-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 14px; }
+.why { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.why .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.why .head .vs { font: 500 12px var(--font-mono); color: var(--muted); }
+.why dl { margin: 0; display: grid; gap: 8px; font-size: 14px; }
+.why dt { font: 500 11px/1.2 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.why dd { margin: 0; color: var(--ink-2); }
+
+/* ---------- incidents ---------- */
+.incidents { display: grid; gap: 10px; }
+.incident { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 12px; background: var(--warn-soft); border-radius: 10px; padding: 14px 16px; }
+.incident .ico { font: 700 14px/26px var(--font-mono); color: var(--warn); text-align: center; border: 2px solid var(--warn); border-radius: 50%; width: 26px; height: 26px; }
+.incident p { font-size: 14px; color: var(--ink-2); }
+.incident p b { color: var(--ink); }
+
+/* ---------- concept callout ---------- */
+.concept { border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 10px 10px 0; padding: 14px 18px; display: grid; gap: 6px; }
+.concept p { font-size: 15px; }
+
+/* ---------- self test ---------- */
+.quiz { display: grid; gap: 10px; }
+details.q { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 0; }
+details.q summary { cursor: pointer; padding: 14px 16px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; list-style: none; font-weight: 500; }
+details.q summary::-webkit-details-marker { display: none; }
+details.q summary::after { content: "Show answer"; font: 500 12px/1.9 var(--font-mono); color: var(--accent); white-space: nowrap; }
+details.q[open] summary::after { content: "Hide"; }
+details.q summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 10px; }
+details.q .ans { padding: 0 16px 16px 50px; color: var(--ink-2); font-size: 15px; display: grid; gap: 8px; }
+.knew { display: flex; align-items: center; }
+.knew input { width: 18px; height: 18px; accent-color: var(--accent); margin: 3px 0 0; }
+.progress { font: 500 13px var(--font-mono); color: var(--ink-2); }
+.progress b { color: var(--good); }
+
+/* ---------- big matrix ---------- */
+td.used { font-weight: 600; color: var(--ink); white-space: nowrap; }
+.pill { display: inline-block; font: 500 11px/1.5 var(--font-mono); padding: 0 7px; border-radius: 999px; border: 1px solid var(--rule); color: var(--ink-2); white-space: nowrap; }
+
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule); padding-top: 18px; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="wrap">
+  <nav class="route" aria-label="Guide sections">
+    <div class="label">Route map</div>
+    <ol>
+      <li><a href="#overview"><span class="dot interchange" style="--c: var(--accent)"></span>The whole journey</a></li>
+      <li><a href="#phase-1"><span class="dot" style="--c: var(--p1)"></span>1 · Ingestion</a></li>
+      <li><a href="#phase-2"><span class="dot" style="--c: var(--p2)"></span>2 · Stream processing</a></li>
+      <li><a href="#phase-3"><span class="dot" style="--c: var(--p3)"></span>3 · Warehouse</a></li>
+      <li><a href="#phase-4"><span class="dot" style="--c: var(--p4)"></span>4 · Hardening</a></li>
+      <li><a href="#phase-5"><span class="dot" style="--c: var(--p5)"></span>5 · Dashboard</a></li>
+      <li><a href="#glue"><span class="dot" style="--c: var(--muted)"></span>Glue files</a></li>
+      <li><a href="#languages"><span class="dot" style="--c: var(--muted)"></span>Languages</a></li>
+      <li><a href="#tools"><span class="dot interchange" style="--c: var(--accent)"></span>All tool choices</a></li>
+      <li><a href="#problems"><span class="dot" style="--c: var(--warn)"></span>What went wrong</a></li>
+      <li><a href="#test"><span class="dot interchange" style="--c: var(--good)"></span>Self-test</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="top">
+      <div class="eyebrow">Study guide · github.com/safwan0486/transit-pulse</div>
+      <h1>Transit Pulse Field Guide</h1>
+      <p class="lede">Everything you built, explained in order: what each file does, how one GPS ping travels from a bus in Kuala Lumpur to your dashboard, why each tool was picked over the alternatives, and every problem we hit on the way.</p>
+      <div class="how-to">
+        <span>Read one phase per study session</span>
+        <span>Open the real file in VS Code beside it</span>
+        <span>Finish with the self-test at the end</span>
+      </div>
+    </header>
+
+    <!-- ============================================================ OVERVIEW -->
+    <section id="overview">
+      <div class="stack">
+        <div class="eyebrow">Start here</div>
+        <h2>The journey of one bus ping</h2>
+        <p>Follow a single GPS reading from bus <code>WVC3917</code> on route U8220. Every part of the project exists to move this one record forward, make it more trustworthy, or watch that it keeps moving.</p>
+      </div>
+      <div class="flow" role="list">
+        <div class="step" role="listitem" style="border-top: 3px solid var(--p1)"><b>data.gov.my</b><span>Publishes all bus positions as a protobuf file, updated every ~30 s</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="step" role="listitem" style="border-top: 3px solid var(--p1)"><b>Producer</b><span>Downloads it, turns each bus into a JSON record, sends to Kafka</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="step" role="listitem" style="border-top: 3px solid var(--p1)"><b>Kafka</b><span>Stores the record in order, lets many readers consume it</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="step" role="listitem" style="border-top: 3px solid var(--p2)"><b>Spark</b><span>Validates, fixes units, removes duplicates → silver (or quarantine)</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="step" role="listitem" style="border-top: 3px solid var(--p3)"><b>dbt + DuckDB</b><span>Matches pings to scheduled stops, computes delay and bus spacing</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="step" role="listitem" style="border-top: 3px solid var(--p5)"><b>Dashboard</b><span>Shows punctuality, bunching and a live map</span></div>
+      </div>
+      <p>Two things run beside this main line: <b>Airflow</b> downloads the official timetables every morning (needed to know where a bus <em>should</em> be), and the <b>Phase 4</b> jobs watch the whole line and alert you when anything stops.</p>
+
+      <div class="concept">
+        <h4>The medallion lake: bronze → silver → gold</h4>
+        <p><b>Bronze</b> = raw data exactly as received, never changed (your insurance: you can always rebuild from it). <b>Silver</b> = cleaned, typed, deduplicated. <b>Gold</b> = business-ready summary tables for the dashboard. Each layer only reads from the one before it. This pattern is used at almost every company with a data lake, so interviewers expect you to know it.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Lake folder</th><th>Layer</th><th>Written by</th><th>Contains</th></tr></thead>
+          <tbody>
+            <tr><td class="file">bronze/vehicle_positions/</td><td>bronze</td><td>bronze sink (Phase 1)</td><td>Raw GPS records, one folder per feed / day / hour</td></tr>
+            <tr><td class="file">bronze/gtfs_static/</td><td>bronze</td><td>Airflow (Phase 1)</td><td>The original timetable zip files, one per day</td></tr>
+            <tr><td class="file">silver/gtfs_static/</td><td>silver</td><td>Airflow (Phase 1)</td><td>Each timetable file (stops, trips…) as Parquet</td></tr>
+            <tr><td class="file">silver/vehicle_positions/</td><td>silver</td><td>Spark (Phase 2)</td><td>Clean, deduplicated GPS, by feed and Malaysian date</td></tr>
+            <tr><td class="file">quarantine/vehicle_positions/</td><td>—</td><td>Spark (Phase 2)</td><td>Bad records plus the reason they failed</td></tr>
+            <tr><td class="file">gold/*.parquet</td><td>gold</td><td>dbt (Phase 5)</td><td>Summary tables the dashboard reads</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================================================ PHASE 1 -->
+    <section id="phase-1" style="--c: var(--p1)">
+      <div class="station">
+        <div class="badge" aria-hidden="true">1</div>
+        <div class="meta">
+          <div class="eyebrow">Phase 1</div>
+          <h2>Ingestion: getting data in</h2>
+          <p>Goal: reliably collect live GPS every 30 seconds and the timetables every day, without losing data when something restarts.</p>
+        </div>
+      </div>
+
+      <h3>How it flows</h3>
+      <ol class="steps">
+        <li><code>producer.py</code> wakes up every 30 s and calls the data.gov.my API for each feed (Rapid KL, MRT feeder, KTMB).</li>
+        <li>The answer is a <b>protobuf</b> file (a compact binary format, not JSON). <code>gtfs_rt.py</code> decodes it into one Python dict per vehicle.</li>
+        <li>Each record gets an <code>event_id</code> = <code>feed:vehicle:timestamp</code>. The same bus at the same moment always gets the same id, which makes duplicates detectable later.</li>
+        <li>The producer skips records it already sent (the API repeats a bus until it reports again), then sends the rest to the Kafka topic <code>gtfs.vehicle_positions</code>.</li>
+        <li><code>bronze_sink.py</code> reads from Kafka, collects records for up to 5 minutes, writes them as one Parquet file to <code>bronze/</code>, and only <b>then</b> tells Kafka "done" (commits the offset).</li>
+        <li>Separately, every day at 03:00 Malaysia time, the Airflow DAG <code>gtfs_static_ingest</code> downloads each feed's timetable zip, saves it to bronze, checks that the required files exist, and converts every table to Parquet in silver.</li>
+      </ol>
+
+      <h3>Files</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>File</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td class="file">ingestion/transit/feeds.py</td><td>A list of the 6 feeds and how to build their URLs. Change which feeds run with <code>REALTIME_FEEDS</code> in <code>.env</code>. <span class="kw">config as code</span></td></tr>
+          <tr><td class="file">ingestion/transit/http.py</td><td>One shared web client that <b>retries</b> with growing waits (1 s, 2 s, 4 s…) when the API returns 429/500/503. <span class="kw">exponential backoff</span></td></tr>
+          <tr><td class="file">ingestion/transit/gtfs_rt.py</td><td>Decodes the protobuf feed into flat records. Handles fields the feed may leave out (they become <code>None</code>, not 0). <span class="kw">protobuf</span><span class="kw">natural key</span></td></tr>
+          <tr><td class="file">ingestion/transit/producer.py</td><td>The polling loop. Uses an <b>idempotent</b> Kafka producer with <code>acks=all</code>, keys each message by vehicle, and shuts down cleanly on Ctrl+C. <code>--once --dry-run</code> prints data without Kafka. <span class="kw">idempotent producer</span><span class="kw">message key</span></td></tr>
+          <tr><td class="file">ingestion/transit/bronze_sink.py</td><td>Kafka → Parquet in bronze. Commits offsets <b>after</b> writing, so a crash can repeat data but never lose it. Folders by <b>ingestion</b> time. <span class="kw">at-least-once</span><span class="kw">consumer group</span></td></tr>
+          <tr><td class="file">ingestion/transit/lake.py</td><td>Small helpers to read/write the S3 lake with <code>boto3</code>. Works with SeaweedFS locally and real AWS S3 by changing one setting.</td></tr>
+          <tr><td class="file">ingestion/transit/gtfs_static.py</td><td>Downloads and validates timetable zips; converts each <code>.txt</code> table to Parquet (kept as text; types are added later in dbt). <span class="kw">idempotent paths</span></td></tr>
+          <tr><td class="file">airflow/dags/gtfs_static_ingest.py</td><td>The daily Airflow job. Uses <b>dynamic task mapping</b> (one task per feed) so a broken KTMB feed doesn't stop Rapid KL. Retries 3× with backoff. <span class="kw">DAG</span><span class="kw">task mapping</span></td></tr>
+          <tr><td class="file">ingestion/Dockerfile</td><td>Image for the producer and sink: Python 3.12, dependencies, runs as a non-root user.</td></tr>
+          <tr><td class="file">ingestion/requirements.txt</td><td>Pinned versions: <code>confluent-kafka</code>, <code>gtfs-realtime-bindings</code>, <code>pyarrow</code>, <code>boto3</code>, <code>requests</code>.</td></tr>
+          <tr><td class="file">infra/seaweedfs/s3.json</td><td>Local login (access key) for the SeaweedFS S3 lake. Must match <code>.env</code>.</td></tr>
+          <tr><td class="file">tests/test_gtfs_rt.py · test_gtfs_static.py · test_bronze_sink.py</td><td>Unit tests: decoding with missing fields, BOM/space handling in CSVs, required tables, folder layout, schema.</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="concept">
+        <h4>Key idea: at-least-once + a natural key = safe</h4>
+        <p>Perfect "exactly once" delivery is hard and expensive. Instead, the pipeline accepts that a record might arrive <b>twice</b> (never zero times), and gives every record a natural key (<code>event_id</code>) so later stages can remove the duplicate. This is the standard real-world approach.</p>
+      </div>
+
+      <h3>Why these tools</h3>
+      <div class="why-grid">
+        <div class="why"><div class="head"><h4>Kafka (Redpanda locally)</h4><span class="vs">vs RabbitMQ, Pub/Sub, Kinesis</span></div>
+          <dl><dt>Why</dt><dd>Kafka keeps messages after they are read, so you can <b>replay</b> (we rebuilt silver from it). Many readers can consume the same data independently. It's the industry standard for streaming and appears in most DE job ads.</dd>
+          <dt>Why Redpanda</dt><dd>It speaks the exact Kafka protocol but is one small program with no Java and no ZooKeeper. Your Docker only had ~3.9 GB RAM; Apache Kafka would use much more.</dd>
+          <dt>Pick the alternative when</dt><dd>RabbitMQ: task queues where each message is processed once and deleted. Pub/Sub or Kinesis: on Google Cloud or AWS, when you want it fully managed.</dd></dl></div>
+        <div class="why"><div class="head"><h4>Parquet</h4><span class="vs">vs CSV, JSON</span></div>
+          <dl><dt>Why</dt><dd>Columnar: a query reading 3 columns skips the other 18. Compressed (often 5–10× smaller than CSV) and stores types (a number stays a number).</dd>
+          <dt>Pick the alternative when</dt><dd>CSV/JSON only for tiny files people open by hand, or for systems that can't read Parquet.</dd></dl></div>
+        <div class="why"><div class="head"><h4>S3 API (SeaweedFS locally)</h4><span class="vs">vs local folders, MinIO</span></div>
+          <dl><dt>Why</dt><dd>Code written against the S3 API runs unchanged on AWS S3 or Google Cloud Storage. A local folder would need rewriting for the cloud.</dd>
+          <dt>Why not MinIO</dt><dd>MinIO was the plan (it's the usual choice) but its free Docker images were no longer downloadable. SeaweedFS is an open-source replacement.</dd></dl></div>
+        <div class="why"><div class="head"><h4>confluent-kafka</h4><span class="vs">vs kafka-python</span></div>
+          <dl><dt>Why</dt><dd>Built on the fast C library <code>librdkafka</code>, actively maintained, supports idempotent producing. <code>kafka-python</code> is pure Python, slower, and maintained less actively.</dd></dl></div>
+        <div class="why"><div class="head"><h4>Airflow for the daily job</h4><span class="vs">vs cron</span></div>
+          <dl><dt>Why</dt><dd>Cron only starts a script. Airflow adds retries, a UI with logs, alerts, backfills of past days, and dependencies between steps.</dd>
+          <dt>Pick the alternative when</dt><dd>One simple script on one server, where a failure is harmless.</dd></dl></div>
+      </div>
+    </section>
+
+    <!-- ============================================================ PHASE 2 -->
+    <section id="phase-2" style="--c: var(--p2)">
+      <div class="station">
+        <div class="badge" aria-hidden="true">2</div>
+        <div class="meta">
+          <div class="eyebrow">Phase 2</div>
+          <h2>Stream processing: cleaning in real time</h2>
+          <p>Goal: turn raw Kafka records into trustworthy silver data within about a minute, separate the bad records, and remove duplicates, all without losing or double-counting data if Spark restarts.</p>
+        </div>
+      </div>
+
+      <h3>How it flows</h3>
+      <ol class="steps">
+        <li>Every 60 s, Spark reads all new Kafka messages (a <b>micro-batch</b>).</li>
+        <li><code>parse_kafka</code> turns the JSON text into typed columns. Broken JSON becomes empty values but the raw text is kept.</li>
+        <li><code>standardize</code> converts timestamps, fixes the speed unit (km/h, proven with GPS math), sets KTMB's fake speed to empty, and adds the Malaysian date.</li>
+        <li><code>add_quality_flags</code> gives each record a <code>dq_reason</code>: empty if good, otherwise the first rule it broke (missing GPS, outside Malaysia, faster than 160 km/h, timestamp in the future…).</li>
+        <li>Good records go through <code>dedupe</code> (same <code>event_id</code> within 15 minutes = duplicate) and are written to <b>silver</b>. Bad records go to <b>quarantine</b> with their reason.</li>
+        <li>Spark saves its position in Kafka and its "seen ids" memory in a <b>checkpoint</b>, so after a restart it continues exactly where it stopped.</li>
+      </ol>
+
+      <h3>Files</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>File</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td class="file">spark/jobs/transforms.py</td><td>All cleaning logic as <b>pure functions</b> (DataFrame in, DataFrame out, no reading or writing). That's why they can be unit tested. Contains the schema, the units fix, the quality rules and dedupe. <span class="kw">pure functions</span><span class="kw">watermark</span></td></tr>
+          <tr><td class="file">spark/jobs/silver_vehicle_positions.py</td><td>The running job: connects to Kafka and the lake, then starts two streaming queries (silver and quarantine), each with its own checkpoint. Groups rows by feed before writing so each batch writes one file per feed. <span class="kw">checkpoint</span><span class="kw">micro-batch</span></td></tr>
+          <tr><td class="file">spark/Dockerfile</td><td>Official Spark 3.5.3 image plus the Kafka and S3 connector jars, downloaded at <b>build</b> time (reproducible, no downloads at startup). The S3 jar must match Spark's Hadoop version (3.3.4).</td></tr>
+          <tr><td class="file">spark/conftest.py</td><td>Creates one small local Spark session shared by all tests.</td></tr>
+          <tr><td class="file">spark/tests/test_transforms.py</td><td>16 tests: units, Malaysian date at midnight, each quarantine reason, and a <b>real streaming test</b> where the same record arrives in two batches across a restart.</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="concept">
+        <h4>Key idea: the watermark limits memory</h4>
+        <p>To catch duplicates, Spark must remember every id it has seen. A stream never ends, so memory would grow forever. The 15-minute watermark says: "only remember ids from the last 15 minutes of <em>event time</em>; data later than that is dropped." For 30-second bus positions, losing very late data is acceptable. For payments it would not be.</p>
+      </div>
+
+      <h3>Why these tools</h3>
+      <div class="why-grid">
+        <div class="why"><div class="head"><h4>Spark Structured Streaming</h4><span class="vs">vs Flink, Kafka Streams, plain Python</span></div>
+          <dl><dt>Why</dt><dd>Gives you checkpoints, watermarks, stateful dedupe and exactly-once file output built in. Spark is the most requested processing engine in DE job ads, and the same API works for batch.</dd>
+          <dt>Pick the alternative when</dt><dd><b>Flink</b>: true per-event processing with millisecond latency and complex state (fraud detection). <b>Kafka Streams</b>: Java/Scala apps that read and write Kafka only. <b>Plain Python</b> (like our bronze sink): simple copying with no state.</dd></dl></div>
+        <div class="why"><div class="head"><h4>PySpark (Python)</h4><span class="vs">vs Scala Spark</span></div>
+          <dl><dt>Why</dt><dd>The DataFrame code becomes the same optimized plan on the Java engine, so there's no speed loss as long as you avoid Python UDFs (we have none). Python is what most DE teams write.</dd></dl></div>
+        <div class="why"><div class="head"><h4>Quarantine instead of dropping</h4><span class="vs">vs filtering bad rows away</span></div>
+          <dl><dt>Why</dt><dd>Dropped rows are invisible: you never learn that a feed broke. Quarantined rows can be counted, alerted on (Phase 4 does) and replayed after a fix. That's how we found null island and the 2029 clock.</dd></dl></div>
+        <div class="why"><div class="head"><h4>RocksDB state store</h4><span class="vs">vs default in-memory store</span></div>
+          <dl><dt>Why</dt><dd>Keeps dedupe memory on disk instead of in Java memory, so a big state doesn't crash a small machine.</dd></dl></div>
+      </div>
+    </section>
+
+    <!-- ============================================================ PHASE 3 -->
+    <section id="phase-3" style="--c: var(--p3)">
+      <div class="station">
+        <div class="badge" aria-hidden="true">3</div>
+        <div class="meta">
+          <div class="eyebrow">Phase 3</div>
+          <h2>Warehouse: turning data into answers</h2>
+          <p>Goal: answer "is this bus late?" The feeds only give GPS positions, so the warehouse has to <b>work out</b> when a bus reached each stop, then compare that with the timetable.</p>
+        </div>
+      </div>
+
+      <h3>How it flows (dbt layers)</h3>
+      <div class="flow" role="list">
+        <div class="step" role="listitem"><b>staging</b><span>Rename, cast types, one model per source. Views.</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="step" role="listitem"><b>intermediate</b><span>Reusable joins: trips + stops + timetable snapshot.</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="step" role="listitem"><b>core</b><span>Facts and dimensions (star schema). Tables.</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="step" role="listitem"><b>performance / monitoring</b><span>Daily and hourly answers for people.</span></div>
+      </div>
+      <ol class="steps">
+        <li>Staging reads silver Parquet <b>in place</b> from the lake (DuckDB's <code>read_parquet</code> over S3; nothing is copied).</li>
+        <li><code>fct_stop_arrivals</code> matches each GPS ping to its trip's scheduled stops within 150 m. Because 94% of MRT feeder trips are loops, each ping is assigned to <b>one</b> stop visit only: the one closest to its scheduled time.</li>
+        <li>MRT feeder has exact times per stop, so delay = observed − scheduled → <code>mart_route_on_time_daily</code> and <code>mart_network_delay_hourly</code>.</li>
+        <li>Rapid KL runs "every N minutes", so we measure gaps between <b>actual departures</b> → <code>mart_dispatch_headways</code> → <code>mart_route_headway_daily</code>.</li>
+        <li><code>dbt build</code> runs every model <b>and its tests</b> in order. If a test fails, everything after it is skipped, so bad data never reaches the dashboard.</li>
+      </ol>
+
+      <h3>Files</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>File</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr class="group"><td colspan="2">Project setup</td></tr>
+          <tr><td class="file">warehouse/dbt_project.yml</td><td>Project settings: which folders become views or tables, and <b>variables</b> (150 m match radius, on-time window −1/+5 min, bunching thresholds) so rules are changed in one place.</td></tr>
+          <tr><td class="file">warehouse/profiles.yml</td><td>How dbt connects: a DuckDB file, plus S3 settings read from environment variables (no passwords in the file).</td></tr>
+          <tr><td class="file">warehouse/packages.yml · package-lock.yml</td><td>Installs <code>dbt_utils</code> (extra tests like <code>accepted_range</code>). The lock file pins the exact version.</td></tr>
+          <tr><td class="file">warehouse/macros/transit_helpers.sql</td><td>Reusable SQL functions: GTFS time "25:15:00" → seconds, UTC → Malaysia time, GPS distance (haversine), and schema naming. <span class="kw">macros</span></td></tr>
+          <tr class="group"><td colspan="2">Staging (cleaned copies of sources)</td></tr>
+          <tr><td class="file">models/staging/_sources.yml</td><td>Declares the lake files as sources, with a <b>freshness</b> check (warn after 15 min without new GPS).</td></tr>
+          <tr><td class="file">stg_lake__vehicle_positions.sql</td><td>Silver GPS with Malaysian time added. Renames the unreliable realtime route id to <code>rt_route_id</code>.</td></tr>
+          <tr><td class="file">stg_gtfs__routes / stops / trips / stop_times / frequencies.sql</td><td>Timetable tables with proper types. Routes builds a display name (MRT feeder hides its route number in <code>route_long_name</code>). Stops drops the broken <code>geometry</code> column.</td></tr>
+          <tr><td class="file">models/staging/_staging.yml</td><td>Tests on staging: unique keys, GPS inside Malaysia, speed range, valid feed names.</td></tr>
+          <tr class="group"><td colspan="2">Intermediate</td></tr>
+          <tr><td class="file">int_gtfs__snapshot_for_service_date.sql</td><td>For each day, which timetable version was valid. Old days keep their old timetable, so history isn't rewritten.</td></tr>
+          <tr><td class="file">int_gtfs__trip_stops.sql</td><td>Every stop of every trip with coordinates, first/last flags and whether the trip is timetable- or frequency-based.</td></tr>
+          <tr><td class="file">int_frequency_dispatches.sql</td><td>One row per actual Rapid KL departure (from the feed's start time). Its comment explains why the stop-based method was replaced.</td></tr>
+          <tr class="group"><td colspan="2">Core (star schema)</td></tr>
+          <tr><td class="file">fct_stop_arrivals.sql</td><td>The heart of the project: GPS → stop visits, with delay. <b>Incremental</b>: only reprocesses the last day each run. <span class="kw">incremental</span><span class="kw">window functions</span></td></tr>
+          <tr><td class="file">fct_vehicle_positions.sql</td><td>Every GPS position with the route taken from the timetable (more reliable than the realtime route id). Incremental.</td></tr>
+          <tr><td class="file">dim_route.sql</td><td>Routes as <b>SCD Type 2</b>: when a route's name changes, the old version is kept with <code>valid_from</code>/<code>valid_to</code> dates. <span class="kw">SCD2</span></td></tr>
+          <tr><td class="file">dim_stop.sql</td><td>Stops from the latest timetable.</td></tr>
+          <tr class="group"><td colspan="2">Performance marts</td></tr>
+          <tr><td class="file">mart_route_on_time_daily.sql</td><td>Per MRT feeder route per day: on-time %, early %, late %, median and 90th-percentile delay.</td></tr>
+          <tr><td class="file">mart_network_delay_hourly.sql</td><td>The same numbers per hour of day (the heatmap).</td></tr>
+          <tr><td class="file">mart_dispatch_headways.sql</td><td>Gap between each Rapid KL departure and the previous one on the same route, flagged as bunched (&lt; 0.5×) or gap (&gt; 1.5×). Skips gaps that start before data collection began.</td></tr>
+          <tr><td class="file">mart_route_headway_daily.sql</td><td>Per route per day: % evenly spaced, % bunched, % gaps, and Excess Wait Time.</td></tr>
+          <tr><td class="file">models/marts/_marts.yml</td><td>Tests for marts (percentages sum to 100, delay within ±30 min…) and the <b>unit test</b> with fake buses A–E checking bunching and gap logic.</td></tr>
+          <tr class="group"><td colspan="2">Custom tests and orchestration</td></tr>
+          <tr><td class="file">tests/assert_dim_route_valid_scd2.sql</td><td>Each route has at most one current version, and versions don't overlap.</td></tr>
+          <tr><td class="file">tests/assert_stop_arrivals_in_order.sql</td><td>Warns when a later stop seems visited 10+ min before an earlier one (matching quality, about 2%).</td></tr>
+          <tr><td class="file">airflow/dags/transit_dbt_build.py</td><td>Hourly: <code>dbt deps</code> → source freshness → <code>dbt build</code>.</td></tr>
+          <tr><td class="file">airflow/Dockerfile</td><td>Airflow image, plus dbt installed in a <b>separate virtual environment</b> so its packages can't clash with Airflow's.</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="concept">
+        <h4>Key idea: star schema</h4>
+        <p><b>Facts</b> are events with numbers (each stop arrival, each GPS ping). <b>Dimensions</b> describe them (which route, which stop). Marts join facts to dimensions and aggregate. Interviewers often ask you to explain this, and SCD Type 2 ("how do you keep history when a dimension changes?").</p>
+      </div>
+
+      <h3>Why these tools</h3>
+      <div class="why-grid">
+        <div class="why"><div class="head"><h4>dbt</h4><span class="vs">vs plain SQL scripts, stored procedures, SQLMesh</span></div>
+          <dl><dt>Why</dt><dd>Models depend on each other through <code>ref()</code>, so dbt runs them in the right order and draws the lineage. Tests, documentation and incremental loading come built in. It's the standard tool for analytics engineering.</dd>
+          <dt>Pick the alternative when</dt><dd>Plain SQL for one or two queries. SQLMesh is a newer rival with built-in column-level lineage and virtual environments; fewer jobs ask for it.</dd></dl></div>
+        <div class="why"><div class="head"><h4>DuckDB</h4><span class="vs">vs PostgreSQL, BigQuery, Snowflake</span></div>
+          <dl><dt>Why</dt><dd>Free, no server, very fast for analytics, and reads Parquet straight from the lake. Perfect for a laptop.</dd>
+          <dt>Its limit</dt><dd>Only one program can write to the file at a time. That's why Phase 5 added the gold layer.</dd>
+          <dt>Pick the alternative when</dt><dd>BigQuery/Snowflake: a team, big data, many users at once (Terraform in Phase 4 prepares BigQuery). PostgreSQL: an app database with many small writes; slower for analytics.</dd></dl></div>
+        <div class="why"><div class="head"><h4>Daily snapshots → SCD2</h4><span class="vs">vs dbt snapshots</span></div>
+          <dl><dt>Why</dt><dd>dbt snapshots only record changes while dbt runs; miss a day and history has a hole. Building SCD2 from the daily timetable files in the lake can be rebuilt at any time and always gives the same result.</dd></dl></div>
+        <div class="why"><div class="head"><h4>Two metrics for two timetable styles</h4><span class="vs">vs one "delay" for everything</span></div>
+          <dl><dt>Why</dt><dd>Rapid KL publishes no fixed times, so "delay" doesn't exist for it. Using the metric that fits each service (on-time % vs headway adherence) is how transit agencies such as Transport for London measure it.</dd></dl></div>
+      </div>
+    </section>
+
+    <!-- ============================================================ PHASE 4 -->
+    <section id="phase-4" style="--c: var(--p4)">
+      <div class="station">
+        <div class="badge" aria-hidden="true">4</div>
+        <div class="meta">
+          <div class="eyebrow">Phase 4</div>
+          <h2>Hardening: running safely without you watching</h2>
+          <p>Goal: notice problems before users do, keep the lake tidy, and make the cloud setup repeatable.</p>
+        </div>
+      </div>
+
+      <h3>How it flows</h3>
+      <ol class="steps">
+        <li>Every 15 min, <code>pipeline_health</code> checks each stage: newest bronze file, newest silver file, Kafka lag of the sink, quarantine rate, and timetable age.</li>
+        <li>If a check fails, it sends <b>one</b> alert to Discord/Slack, and one more when everything recovers. It remembers the last state in an Airflow Variable so it doesn't repeat itself.</li>
+        <li>Every DAG also alerts when a task fails after its last retry (<code>on_failure_callback</code>).</li>
+        <li>Every hour, <code>bronze_compaction</code> merges the small bronze files of each finished hour into one file.</li>
+        <li>dbt's <code>mart_feed_health_hourly</code> and two warning tests catch frozen feeds and trips that stop matching the timetable.</li>
+        <li>Terraform describes the Google Cloud resources as code, checked in CI.</li>
+      </ol>
+
+      <h3>Files</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>File</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td class="file">ingestion/transit/alerts.py</td><td>Sends a message to a Discord or Slack webhook (only logs if none is set). A broken webhook never hides the original error.</td></tr>
+          <tr><td class="file">ingestion/transit/health.py</td><td>The 5 checks. Split into pure "evaluate" functions (easy to test) and "gather" functions that talk to the lake and Kafka.</td></tr>
+          <tr><td class="file">airflow/dags/pipeline_health.py</td><td>Runs the checks every 15 min and alerts only on <b>state changes</b>. <span class="kw">alert fatigue</span></td></tr>
+          <tr><td class="file">ingestion/transit/compaction.py</td><td>Merges closed hour partitions. Safe to re-run: output name = hash of inputs, delete only after the row count is verified, duplicates removed by Kafka position. <span class="kw">idempotency</span><span class="kw">small files</span></td></tr>
+          <tr><td class="file">airflow/dags/bronze_compaction.py</td><td>Runs compaction hourly at :40.</td></tr>
+          <tr><td class="file">models/marts/monitoring/mart_feed_health_hourly.sql</td><td>Per feed per hour: vehicles, frozen vehicles (reporting but not moving), % matching the timetable.</td></tr>
+          <tr><td class="file">tests/assert_feeds_not_frozen.sql · assert_trip_match_rate.sql</td><td>Warning tests on that table. KTMB is on a "known issues" list so the test catches <b>new</b> problems.</td></tr>
+          <tr><td class="file">infra/terraform/main.tf</td><td>GCS bucket (public access blocked; old bronze moves to cheaper storage after 30 days and is deleted after a year), BigQuery datasets, a least-privilege service account, optional budget alert.</td></tr>
+          <tr><td class="file">infra/terraform/variables.tf · outputs.tf · versions.tf</td><td>Inputs (project id, region Singapore), outputs (bucket name), and pinned provider versions.</td></tr>
+          <tr><td class="file">infra/terraform/terraform.tfvars.example · .terraform.lock.hcl</td><td>Example settings to copy, and the lock file that pins exact provider builds.</td></tr>
+          <tr><td class="file">tests/test_alerts_health.py · test_compaction.py</td><td>Webhook payloads, missing data counted as failure, Malaysia/UTC day boundary, compaction planning and duplicate removal.</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="concept">
+        <h4>Key idea: idempotent = safe to run twice</h4>
+        <p>An idempotent job gives the same result whether it runs once or five times. Every job in this project is built that way (date-based output paths, hash-named files, delete-after-verify), so retries and backfills never create duplicates. Say this word in interviews.</p>
+      </div>
+
+      <h3>Why these tools</h3>
+      <div class="why-grid">
+        <div class="why"><div class="head"><h4>Health checks in an Airflow DAG</h4><span class="vs">vs Prometheus + Grafana</span></div>
+          <dl><dt>Why</dt><dd>Uses what was already running, with no new services on a laptop with little RAM.</dd>
+          <dt>Pick the alternative when</dt><dd>In a company, Prometheus collects metrics and Grafana shows dashboards and alerts. That's the better tool at scale; mention it in interviews.</dd></dl></div>
+        <div class="why"><div class="head"><h4>Terraform</h4><span class="vs">vs clicking in the console, Pulumi, CloudFormation</span></div>
+          <dl><dt>Why</dt><dd>The setup is code: reviewed in Git, repeatable, and checked in CI. Terraform works on every cloud and is the most common IaC tool in job ads.</dd>
+          <dt>Pick the alternative when</dt><dd>Pulumi if you'd rather write Python than HCL. CloudFormation only works on AWS.</dd></dl></div>
+        <div class="why"><div class="head"><h4>dbt tests for data health</h4><span class="vs">vs Great Expectations, Soda</span></div>
+          <dl><dt>Why</dt><dd>Already inside the dbt run, so no extra tool. Great Expectations and Soda are stronger for profiling and data contracts across many systems.</dd></dl></div>
+      </div>
+    </section>
+
+    <!-- ============================================================ PHASE 5 -->
+    <section id="phase-5" style="--c: var(--p5)">
+      <div class="station">
+        <div class="badge" aria-hidden="true">5</div>
+        <div class="meta">
+          <div class="eyebrow">Phase 5</div>
+          <h2>Dashboard: showing the answers</h2>
+          <p>Goal: one page that tells a non-engineer how reliable buses are today, with a live map, without slowing down or breaking the warehouse.</p>
+        </div>
+      </div>
+
+      <h3>How it flows</h3>
+      <ol class="steps">
+        <li>At the end of every <code>dbt build</code>, the <code>export_gold</code> macro copies 4 summary tables to <code>gold/*.parquet</code> in the lake.</li>
+        <li>The Streamlit app opens an in-memory DuckDB and reads those gold files (fast, tiny).</li>
+        <li>For the live map it first <b>lists</b> today's silver files, keeps those written in the last 12 minutes, and reads only those.</li>
+        <li>Results are cached (5 min for summaries, 30 s for the map) so many viewers don't repeat the same work.</li>
+      </ol>
+
+      <h3>Files</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>File</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td class="file">warehouse/macros/export_gold.sql</td><td>The gold export, run by dbt's <code>on-run-end</code> hook after build/run only.</td></tr>
+          <tr><td class="file">dashboard/data.py</td><td>All queries, each taking a connection and a path, so tests can use local files instead of the lake. Averages are <b>weighted</b> by number of arrivals.</td></tr>
+          <tr><td class="file">dashboard/app.py</td><td>The page: KPI row, live map (pydeck), feed health table, delay heatmap and two ranked bar charts (Altair), table views, and the method notes.</td></tr>
+          <tr><td class="file">dashboard/theme.py</td><td>Colors checked for color-blind safety, fixed per operator (Rapid KL always blue), and chart styling.</td></tr>
+          <tr><td class="file">dashboard/.streamlit/config.toml</td><td>Light theme colors and turns off usage tracking.</td></tr>
+          <tr><td class="file">dashboard/Dockerfile · requirements.txt</td><td>Python image with Streamlit, DuckDB and boto3; pre-downloads DuckDB's S3 extension; has a health check.</td></tr>
+          <tr><td class="file">tests/test_dashboard_data.py</td><td>7 tests with small Parquet files: newest date first, weighted averages, latest hour, latest ping per bus.</td></tr>
+          <tr><td class="file">docs/dashboard.png</td><td>The README screenshot, taken with a headless browser (Playwright).</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>Why these tools</h3>
+      <div class="why-grid">
+        <div class="why"><div class="head"><h4>Streamlit</h4><span class="vs">vs Superset, Metabase, Power BI, Tableau, Grafana</span></div>
+          <dl><dt>Why</dt><dd>Pure Python, lives in Git with the rest of the project, and allows custom logic like the live map. One small container.</dd>
+          <dt>Pick the alternative when</dt><dd><b>Power BI/Tableau</b>: what many Malaysian companies use for business users (worth learning). <b>Superset/Metabase</b>: open-source BI where people build their own charts by clicking. <b>Grafana</b>: monitoring time series.</dd></dl></div>
+        <div class="why"><div class="head"><h4>Gold Parquet layer</h4><span class="vs">vs the dashboard querying the warehouse</span></div>
+          <dl><dt>Why</dt><dd>DuckDB allows one writer, so the dashboard would hit "file locked" errors whenever dbt runs. Parquet can be read by any engine, and only tested data gets exported.</dd></dl></div>
+        <div class="why"><div class="head"><h4>Altair + pydeck</h4><span class="vs">vs matplotlib, Plotly</span></div>
+          <dl><dt>Why</dt><dd>Both come with Streamlit. Altair gives interactive tooltips with short code; pydeck draws hundreds of map points smoothly. Matplotlib images aren't interactive.</dd></dl></div>
+      </div>
+    </section>
+
+    <!-- ============================================================ GLUE -->
+    <section id="glue">
+      <div class="stack">
+        <div class="eyebrow">Across all phases</div>
+        <h2>Glue files</h2>
+        <p>These don't belong to one phase. They hold the project together.</p>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>File</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td class="file">docker-compose.yml</td><td>Starts all 11 services with one command, in the right order (waits for health checks), with shared settings and storage volumes. Fixes the project name to <code>transit-pulse</code>.</td></tr>
+          <tr><td class="file">.env.example → .env</td><td>Settings and local passwords. <code>.env</code> is never committed; <code>.env.example</code> shows what to fill in.</td></tr>
+          <tr><td class="file">.github/workflows/ci.yml</td><td>4 jobs on every push: lint + Python tests, dbt parse, Terraform fmt/validate, Docker builds + Spark tests.</td></tr>
+          <tr><td class="file">pyproject.toml</td><td>Settings for pytest (where code lives) and ruff (lint rules, 100-character lines, import order).</td></tr>
+          <tr><td class="file">requirements-dev.txt</td><td>What you need to run tests and lint on your own machine.</td></tr>
+          <tr><td class="file">.gitignore</td><td>Keeps secrets, caches, the DuckDB file and Terraform state out of Git.</td></tr>
+          <tr><td class="file">.gitattributes</td><td>Forces Linux line endings (LF). Windows endings (CRLF) can break scripts inside Linux containers.</td></tr>
+          <tr><td class="file">README.md</td><td>The project's front page: architecture, design decisions, findings and how to run it. Recruiters read this first.</td></tr>
+          <tr><td class="file">ingestion/transit/__init__.py · spark/jobs/__init__.py</td><td>Mark folders as Python packages so <code>import transit</code> works.</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="why-grid">
+        <div class="why"><div class="head"><h4>Docker Compose</h4><span class="vs">vs installing everything, Kubernetes</span></div>
+          <dl><dt>Why</dt><dd>Anyone can run the whole system with one command, with the same versions as you. Kubernetes is for running many machines in production; too heavy for a laptop.</dd></dl></div>
+        <div class="why"><div class="head"><h4>GitHub Actions</h4><span class="vs">vs Jenkins, GitLab CI</span></div>
+          <dl><dt>Why</dt><dd>Free for public repos, built into GitHub, no server to manage. Jenkins needs its own server.</dd></dl></div>
+        <div class="why"><div class="head"><h4>ruff</h4><span class="vs">vs flake8 + isort + black</span></div>
+          <dl><dt>Why</dt><dd>One very fast tool that replaces several. Increasingly the default in new Python projects.</dd></dl></div>
+      </div>
+    </section>
+
+    <!-- ============================================================ LANGUAGES -->
+    <section id="languages">
+      <div class="stack">
+        <div class="eyebrow">Languages</div>
+        <h2>Why each language</h2>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Language</th><th>Used for</th><th>Why this one</th></tr></thead>
+        <tbody>
+          <tr><td class="used">Python</td><td>Producer, sink, Spark jobs, Airflow DAGs, dashboard, tests</td><td>Every tool here has a first-class Python library, and it's the main language in data engineering jobs. Airflow DAGs must be Python.</td></tr>
+          <tr><td class="used">SQL</td><td>All dbt models and tests, dashboard queries</td><td>The language of analytics. Most interview coding rounds are SQL. dbt is "SQL + a little Jinja".</td></tr>
+          <tr><td class="used">Jinja</td><td>dbt macros, <code>ref()</code>, variables</td><td>Templating that makes SQL reusable (loops, variables, functions).</td></tr>
+          <tr><td class="used">HCL</td><td>Terraform files</td><td>Terraform's own configuration language: you declare what should exist, Terraform works out how.</td></tr>
+          <tr><td class="used">YAML</td><td>Docker Compose, CI, dbt tests and config</td><td>Readable configuration; the standard for these tools.</td></tr>
+          <tr><td class="used">Dockerfile</td><td>4 images</td><td>Describes how to build each container image step by step.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- ============================================================ TOOLS MATRIX -->
+    <section id="tools">
+      <div class="stack">
+        <div class="eyebrow">Interchange</div>
+        <h2>All tool choices in one table</h2>
+        <p>Use this to answer "why X and not Y?" Every answer has the same shape: <b>what the project needed</b> → <b>why this tool fits</b> → <b>when you'd pick the other one</b>.</p>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Job</th><th>Used</th><th>Main alternatives</th><th>Better in a real company?</th></tr></thead>
+        <tbody>
+          <tr><td>Message stream</td><td class="used">Kafka (Redpanda)</td><td>RabbitMQ, Pub/Sub, Kinesis, Pulsar</td><td>Managed Kafka (Confluent Cloud, Amazon MSK) or Pub/Sub, so nobody runs servers</td></tr>
+          <tr><td>Stream processing</td><td class="used">Spark Structured Streaming</td><td>Flink, Kafka Streams</td><td>Same Spark on Databricks or Dataproc; Flink if latency must be under a second</td></tr>
+          <tr><td>Data lake storage</td><td class="used">SeaweedFS (S3 API)</td><td>MinIO, AWS S3, GCS</td><td>GCS or S3 (Terraform is ready for GCS)</td></tr>
+          <tr><td>Table format</td><td class="used">Plain Parquet</td><td>Delta Lake, Apache Iceberg, Hudi</td><td><b>Yes: Iceberg or Delta.</b> They add transactions, compaction and schema changes, and would fix the small-file and <code>_spark_metadata</code> issues</td></tr>
+          <tr><td>Orchestration</td><td class="used">Airflow 2.10</td><td>Airflow 3, Dagster, Prefect, cron</td><td>Managed Airflow (Cloud Composer, MWAA) or Dagster for asset-based pipelines</td></tr>
+          <tr><td>Transformation</td><td class="used">dbt</td><td>SQL scripts, SQLMesh, Spark SQL</td><td>dbt is already the standard</td></tr>
+          <tr><td>Warehouse</td><td class="used">DuckDB</td><td>BigQuery, Snowflake, Redshift, PostgreSQL</td><td><b>Yes: BigQuery or Snowflake</b> for teams and concurrent users</td></tr>
+          <tr><td>Data quality</td><td class="used">dbt tests + quarantine</td><td>Great Expectations, Soda</td><td>Add them for data contracts and profiling across systems</td></tr>
+          <tr><td>Monitoring</td><td class="used">Health DAG + webhook</td><td>Prometheus + Grafana, Datadog</td><td><b>Yes: Prometheus + Grafana</b> for metrics and dashboards</td></tr>
+          <tr><td>Infrastructure</td><td class="used">Terraform</td><td>Pulumi, CloudFormation</td><td>Terraform is already the standard</td></tr>
+          <tr><td>Dashboard</td><td class="used">Streamlit</td><td>Power BI, Tableau, Looker, Superset, Metabase</td><td>Power BI / Looker for business users; keep Streamlit for custom apps</td></tr>
+          <tr><td>Containers</td><td class="used">Docker Compose</td><td>Kubernetes</td><td>Kubernetes for production with many machines</td></tr>
+          <tr><td>CI</td><td class="used">GitHub Actions</td><td>Jenkins, GitLab CI</td><td>Fine as is</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>Things we wanted but couldn't use</h3>
+      <div class="incidents">
+        <div class="incident"><div class="ico" aria-hidden="true">!</div><p><b>MinIO</b> (the usual local S3) → its free Docker images were no longer downloadable (Docker Hub said "access denied", quay.io "unauthorized"). We used <b>SeaweedFS</b> instead.</p></div>
+        <div class="incident"><div class="ico" aria-hidden="true">!</div><p><b>BigQuery</b> → needs your own Google Cloud account and billing, which only you can create. We used <b>DuckDB</b> now; the Terraform for BigQuery is written and validated, ready when you are.</p></div>
+        <div class="incident"><div class="ico" aria-hidden="true">!</div><p><b>Airflow 3</b> → released 2025 with big changes (new API server, CLI and UI changes). We chose the stable, well-documented <b>2.10.5</b>. Upgrading is a good future exercise.</p></div>
+        <div class="incident"><div class="ico" aria-hidden="true">!</div><p><b>dbt inside Airflow's Python</b> → their package versions conflict. We installed dbt in a <b>separate virtual environment</b> in the same image (a common real-world fix; the Cosmos library is another option).</p></div>
+        <div class="incident"><div class="ico" aria-hidden="true">!</div><p><b>Apache Kafka itself</b> → too much memory for the ~3.9 GB Docker had. <b>Redpanda</b> is Kafka-compatible and much lighter.</p></div>
+        <div class="incident"><div class="ico" aria-hidden="true">!</div><p><b>Running Spark tests on Windows</b> → your Java 21 isn't officially supported by Spark 3.5, so tests run <b>inside the Spark container</b> instead (works the same in CI).</p></div>
+        <div class="incident"><div class="ico" aria-hidden="true">!</div><p><b>Delta Lake / Iceberg</b> → would have been better (see the table above) but add complexity. Plain Parquet kept the focus on the pipeline. A strong "what would you improve?" answer.</p></div>
+      </div>
+    </section>
+
+    <!-- ============================================================ PROBLEMS -->
+    <section id="problems">
+      <div class="stack">
+        <div class="eyebrow">Incident log</div>
+        <h2>What went wrong, and how it was fixed</h2>
+        <p>Real projects are mostly problem-solving. Each of these is an interview story: <b>problem → how we found the cause → fix</b>.</p>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Phase</th><th>Problem</th><th>Cause</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>Setup</td><td>Python virtual environment failed to create</td><td>Windows path-length limit in the long session folder</td><td>Created it in a shorter folder</td></tr>
+          <tr><td>1</td><td>Image download "access denied"</td><td>MinIO stopped publishing free images</td><td>Switched to SeaweedFS</td></tr>
+          <tr><td>1</td><td>Image download timed out</td><td>Docker Desktop's network proxy, just after startup</td><td>Retried</td></tr>
+          <tr><td>1</td><td>Risk of running out of memory</td><td>Docker had only ~3.9 GB</td><td>Smaller Redpanda memory, 2 Airflow web workers, 768 MB Spark driver</td></tr>
+          <tr><td>1</td><td>Speed showed 62 (= 224 km/h)</td><td>Feed sends km/h, not m/s as the standard says</td><td>Proved with GPS math (ratio 3.4), converted in Spark</td></tr>
+          <tr><td>2</td><td>Spark build crashed</td><td>C: drive had 2 MB free</td><td>You freed ~40 GB</td></tr>
+          <tr><td>2</td><td>Spark job restarted in a loop: "parent is not a dir"</td><td>Bug in SeaweedFS 3.80 with Spark's S3 connector</td><td>Tested 4.53 in a side container, upgraded; checkpoints on a local volume</td></tr>
+          <tr><td>2</td><td>All 14 tests failed</td><td>Watermark dedupe only works on streaming data; tests used batch</td><td>Choose the method by <code>isStreaming</code>; added a real streaming test</td></tr>
+          <tr><td>2</td><td>Every KTMB row rejected as 324 km/h</td><td>KTMB always sends exactly 90 (placeholder)</td><td>Speed set to empty for KTMB; rebuilt silver from Kafka</td></tr>
+          <tr><td>3</td><td>Delay spread −26 to +24 min</td><td>94% of MRT feeder trips are loops; pings matched to the wrong pass</td><td>One stop visit per ping, closest to schedule: −5 to +10 min</td></tr>
+          <tr><td>3</td><td>Route ids didn't match</td><td>MRT feeder's live route id uses a different system</td><td>Take the route from the trip (100% match)</td></tr>
+          <tr><td>3</td><td>"Could not convert '' to INT32"</td><td>MRT feeder sends no start time</td><td>Made the time macro return empty for blank values</td></tr>
+          <tr><td>3</td><td>dbt not found in Airflow / wrong flags</td><td>Each service built its own image; dbt flag order</td><td>One shared image; settings via environment variables</td></tr>
+          <tr><td>5</td><td>Live map took 8 s</td><td>Reading hundreds of small files</td><td>List first, read only recent files: about 2 s</td></tr>
+          <tr><td>5</td><td>~10 tiny files a minute</td><td>Spark wrote one file per task per feed</td><td>Repartition by feed before writing: 2–3 a minute</td></tr>
+          <tr><td>5</td><td>Riders "wait +27 min"</td><td>Only 34% of stop passes caught by GPS; gaps looked 2× too long</td><td>Measure gaps between departures; drop pre-coverage gaps; lead with % evenly spaced</td></tr>
+          <tr><td>5</td><td>Bar labels missing, legend looked purple</td><td>Chart squeezed; default color blending</td><td>Fixed row height; Lab color blending</td></tr>
+          <tr><td>Git</td><td>GitHub Desktop wouldn't open</td><td>An update failed while the disk was full</td><td>Reinstalled</td></tr>
+          <tr><td>Git</td><td>Commits under the old account</td><td>Global git email was the old account</td><td>Rewrote the 2 unpushed commits; switched global identity</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- ============================================================ SELF TEST -->
+    <section id="test">
+      <div class="stack">
+        <div class="eyebrow">Last stop</div>
+        <h2>Self-test</h2>
+        <p>Answer out loud first, then open the answer. Tick the box when you could explain it without help. Your ticks are saved in this browser only.</p>
+        <div class="progress" id="progress" aria-live="polite">0 of 0 ready</div>
+      </div>
+      <div class="quiz" id="quiz">
+        <details class="q"><summary><span class="knew"><input type="checkbox" id="q1" aria-label="I can explain this"></span><span>Phase 1 · Why does the bronze sink commit Kafka offsets <em>after</em> writing the file, not before?</span></summary>
+          <div class="ans"><p>If it committed first and then crashed before writing, those messages would be lost forever. Committing after means a crash can only cause the batch to be written <b>again</b> (a duplicate), which later stages remove using <code>event_id</code>. This is "at-least-once" delivery.</p></div></details>
+        <details class="q"><summary><span class="knew"><input type="checkbox" id="q2" aria-label="I can explain this"></span><span>Phase 1 · Why are Kafka messages keyed by vehicle?</span></summary>
+          <div class="ans"><p>Messages with the same key always go to the same partition, and order is guaranteed inside a partition. So each bus's positions stay in time order, even with many partitions and parallel readers.</p></div></details>
+        <details class="q"><summary><span class="knew"><input type="checkbox" id="q3" aria-label="I can explain this"></span><span>Phase 1 · Why is bronze partitioned by ingestion time but silver by event date?</span></summary>
+          <div class="ans"><p>Bronze is append-only raw data: grouping by when it arrived makes it easy to reprocess "everything from 2–3 PM". Silver is for analysis, and people ask about when things <em>happened</em>, in Malaysian time, so silver uses the event's local date.</p></div></details>
+        <details class="q"><summary><span class="knew"><input type="checkbox" id="q4" aria-label="I can explain this"></span><span>Phase 2 · What does a Spark checkpoint store, and why does it matter?</span></summary>
+          <div class="ans"><p>The Kafka positions already processed, and the dedupe state (ids seen recently). After a restart, Spark continues from exactly there: no data skipped, nothing counted twice.</p></div></details>
+        <details class="q"><summary><span class="knew"><input type="checkbox" id="q5" aria-label="I can explain this"></span><span>Phase 2 · Why put the cleaning logic in <code>transforms.py</code> separately from the job file?</span></summary>
+          <div class="ans"><p>The functions take a DataFrame and return a DataFrame, with no Kafka or S3. That makes them testable with small fake data in seconds, and the same logic works for streaming and for batch backfills.</p></div></details>
+        <details class="q"><summary><span class="knew"><input type="checkbox" id="q6" aria-label="I can explain this"></span><span>Phase 3 · How do you know when a bus reached a stop, if the feed never says so?</span></summary>
+          <div class="ans"><p>Match each GPS ping to its trip's scheduled stops within 150 m. Because most MRT feeder routes are loops, each ping is assigned to only one stop visit (the one nearest its scheduled time), and for each stop visit we keep the closest ping. Matches more than 30 minutes off schedule count as mismatches, not delays.</p></div></details>
+        <details class="q"><summary><span class="knew"><input type="checkbox" id="q7" aria-label="I can explain this"></span><span>Phase 3 · What is SCD Type 2 and where is it used?</span></summary>
+          <div class="ans"><p>A way to keep history in a dimension: when a route changes, the old row gets a <code>valid_to</code> date and a new row starts with <code>valid_from</code>. Facts join to the version that was valid on their date. Used in <code>dim_route</code>, built from the daily timetable snapshots.</p></div></details>
+        <details class="q"><summary><span class="knew"><input type="checkbox" id="q8" aria-label="I can explain this"></span><span>Phase 3 · What does "incremental" mean in <code>fct_stop_arrivals</code>?</span></summary>
+          <div class="ans"><p>Instead of rebuilding the whole table every hour, dbt only processes the last day and replaces those rows (delete + insert by key). The one-day lookback makes sure trips that cross the cut-off are rebuilt completely.</p></div></details>
+        <details class="q"><summary><span class="knew"><input type="checkbox" id="q9" aria-label="I can explain this"></span><span>Phase 3 · Why two different metrics for Rapid KL and MRT feeder?</span></summary>
+          <div class="ans"><p>MRT feeder publishes an exact time for each stop, so delay can be measured. Rapid KL only says "every N minutes", so there is no scheduled time to be late against; instead we check whether departures are evenly spaced, bunched or have gaps.</p></div></details>
+        <details class="q"><summary><span class="knew"><input type="checkbox" id="q10" aria-label="I can explain this"></span><span>Phase 4 · Why alert only on state changes?</span></summary>
+          <div class="ans"><p>To avoid alert fatigue. A 3-hour outage would otherwise send 12 identical alerts and people start ignoring them. One "failing" alert and one "recovered" alert are enough.</p></div></details>
+        <details class="q"><summary><span class="knew"><input type="checkbox" id="q11" aria-label="I can explain this"></span><span>Phase 4 · How is compaction made safe to re-run?</span></summary>
+          <div class="ans"><p>The output file name is a hash of the input file names; inputs are deleted only after the output's row count is checked; and rows are deduplicated by Kafka partition + offset. If it crashes midway, the next run finishes the job without creating duplicates.</p></div></details>
+        <details class="q"><summary><span class="knew"><input type="checkbox" id="q12" aria-label="I can explain this"></span><span>Phase 5 · Why doesn't the dashboard read the DuckDB warehouse directly?</span></summary>
+          <div class="ans"><p>DuckDB allows only one writer at a time. While dbt runs, the dashboard would get "file locked" errors. Exporting tested tables to gold Parquet separates serving from building, and any engine can read Parquet.</p></div></details>
+        <details class="q"><summary><span class="knew"><input type="checkbox" id="q13" aria-label="I can explain this"></span><span>Phase 5 · Tell the story of the wrong wait-time metric in under a minute.</span></summary>
+          <div class="ans"><p>The dashboard showed +27 min, which seemed too high. Only 34% of stop passes were caught because GPS comes about once a minute, so gaps looked twice as long. I switched to gaps between actual departures (ratio 2.04 → 1.23), dropped gaps from before data collection started (1.06), and made "% evenly spaced" the headline because wait time is skewed by a few long gaps. Lesson: investigate surprising numbers before publishing.</p></div></details>
+        <details class="q"><summary><span class="knew"><input type="checkbox" id="q14" aria-label="I can explain this"></span><span>Overall · What would you improve with more time and a cloud budget?</span></summary>
+          <div class="ans"><p>Move to managed cloud services using the Terraform (GCS, BigQuery, managed Kafka); switch the lake to Iceberg or Delta for transactions and compaction; replace the health DAG with Prometheus + Grafana; publish dbt docs; and collect weeks of data so trends are meaningful.</p></div></details>
+      </div>
+    </section>
+
+    <footer>Transit Pulse Field Guide · covers every file in the repository at commit b5afde9 · data from data.gov.my (CC BY 4.0)</footer>
+  </main>
+</div>
+
+<script>
+(function () {
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('#quiz input[type="checkbox"]'));
+  var progress = document.getElementById('progress');
+  var KEY = 'transit-pulse-guide-ready';
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { saved = {}; }
+
+  function update() {
+    var done = boxes.filter(function (b) { return b.checked; }).length;
+    progress.innerHTML = '<b>' + done + '</b> of ' + boxes.length + ' ready to explain';
+  }
+  boxes.forEach(function (b) {
+    b.checked = !!saved[b.id];
+    // Ticking the box must not toggle the surrounding <details>.
+    b.addEventListener('click', function (e) { e.stopPropagation(); });
+    b.addEventListener('change', function () {
+      saved[b.id] = b.checked;
+      try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {}
+      update();
+    });
+  });
+  update();
+})();
+</script>
