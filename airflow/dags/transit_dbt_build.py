@@ -14,6 +14,8 @@ import pendulum
 from airflow.decorators import dag
 from airflow.operators.bash import BashOperator
 
+from transit.alerts import airflow_failure_callback
+
 # Project/profiles dirs come from DBT_PROJECT_DIR / DBT_PROFILES_DIR (docker-compose.yml).
 DBT = "$DBT_BIN --no-use-colors"
 
@@ -29,6 +31,7 @@ DBT = "$DBT_BIN --no-use-colors"
         "owner": "data-eng",
         "retries": 1,
         "retry_delay": timedelta(minutes=5),
+        "on_failure_callback": airflow_failure_callback,  # e.g. a failing dbt test
     },
     tags=["dbt", "warehouse", "gold"],
 )

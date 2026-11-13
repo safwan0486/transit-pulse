@@ -24,6 +24,7 @@ x-airflow-common: &airflow-common
     PYTHONPATH: /opt/airflow/ingestion
     S3_ENDPOINT_URL: http://lake:8333
     S3_ENDPOINT_HOST: lake:8333          # DuckDB wants host:port without scheme
+    KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
     DUCKDB_PATH: /opt/airflow/warehouse/transit_pulse.duckdb
     DBT_PROJECT_DIR: /opt/airflow/dbt
     DBT_PROFILES_DIR: /opt/airflow/dbt

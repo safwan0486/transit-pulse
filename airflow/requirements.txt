@@ -1,4 +1,5 @@
 # Versions are pinned by the Airflow constraints file (see Dockerfile)
 boto3
+confluent-kafka
 pyarrow
 requests

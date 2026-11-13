@@ -147,8 +147,9 @@ matching each ping to its trip's scheduled stops. Profiling the real data shaped
 | MRT feeder's realtime `route_id` (`T852`) ≠ its own GTFS `route_id` (`30000068`), but `trip_id` matches 100% | Route always comes from the trip in the timetable. The public number lives in `route_long_name`, so `route_name` falls back to it. |
 | MRT feeder sends no trip start date | Service day is derived from local time (handles trips after midnight). |
 
-A warn-level test (`assert_stop_arrivals_in_order`) tracks matching quality. In the first
-run, 0.8% of visits were out of sequence.
+A warn-level test (`assert_stop_arrivals_in_order`) tracks matching quality: about 2% of
+visits are out of sequence by more than 10 minutes (1.6% MRT feeder, 2.4% Rapid KL,
+over the first 2.5 hours).
 
 ### Two kinds of service → two kinds of reliability metric
 
@@ -175,6 +176,66 @@ Query the warehouse:
 
 ```bash
 docker compose exec airflow-scheduler /opt/dbt-venv/bin/python -c "import duckdb; duckdb.connect('/opt/airflow/warehouse/transit_pulse.duckdb', read_only=True).sql('select * from performance.mart_route_on_time_daily order by pct_on_time limit 10').show()"
+```
+
+---
+
+## Operations: monitoring, alerting and maintenance
+
+| Airflow DAG | Schedule | What it does |
+|---|---|---|
+| `gtfs_static_ingest` | daily 03:00 | Timetables → bronze/silver |
+| `transit_dbt_build` | hourly :15 | dbt models + tests |
+| `pipeline_health` | every 15 min | End-to-end health checks + alerting |
+| `bronze_compaction` | hourly :40 | Merge small bronze files |
+
+### Health checks (`pipeline_health`)
+Each check answers "is data still flowing through this stage?":
+
+| Check | Limit | Catches |
+|---|---|---|
+| Bronze freshness | 2× flush interval + 5 min | Producer, Kafka or sink down |
+| Silver freshness | 10 min | Spark job down or stuck |
+| `bronze-sink` consumer lag | 20,000 msgs | Sink falling behind |
+| Quarantine rate (last hour) | 5% | A feed starts sending bad data (baseline ≈ 1%) |
+| Timetable freshness | 26 h | Daily GTFS download failing |
+
+**Alerts fire on state changes only** (healthy → failing, failing → recovered), so an
+outage produces one alert, not one every 15 minutes. Every DAG also alerts when a task
+fails after its last retry. Set `ALERT_WEBHOOK_URL` in `.env` to a Discord or Slack
+incoming-webhook URL. Without one, alerts are only logged.
+
+### Data health in the warehouse (dbt)
+`monitoring.mart_feed_health_hourly` tracks, per feed and hour, active vehicles, **frozen
+vehicles** (reporting but not moving) and the trip-match rate. Two warn-level tests watch it:
+- `assert_feeds_not_frozen`: most of a feed's vehicles stopped moving. KTMB is on a
+  known-issues list (`known_frozen_feeds`), so the test catches **new** breakages instead of
+  warning forever. With the list emptied, it flags KTMB immediately (verified).
+- `assert_trip_match_rate`: realtime trips stop matching the timetable (e.g. a new GTFS
+  was published but the download failed). The baseline is 97–100%.
+
+### Small-file compaction (`bronze_compaction`)
+The sink writes a file every few minutes, which means about 12 files per feed per hour.
+Each closed hour is merged into one file. The job is **idempotent and safe to re-run**:
+the output name is a hash of its inputs, inputs are deleted only after the output's row
+count is verified, and rows are deduplicated on Kafka (partition, offset). First live run:
+70 files → 21, with the row count unchanged (35,318).
+
+## Cloud infrastructure (Terraform)
+
+`infra/terraform/` defines the Google Cloud setup. It's validated in CI and ready to `apply`:
+
+- **GCS data lake** with public access blocked, plus lifecycle rules: bronze moves to
+  Nearline after 30 days and is deleted after 1 year; quarantine is deleted after 90 days.
+- **BigQuery datasets** matching the dbt schemas (`staging`, `core`, `performance`, `monitoring`, …)
+- **A least-privilege service account**: object admin on *this* bucket and data editor on
+  *these* datasets only, not project-wide.
+- **Optional budget alert** at 50/90/100% of a monthly MYR amount.
+
+```bash
+cd infra/terraform
+cp terraform.tfvars.example terraform.tfvars   # set project_id
+terraform init && terraform plan
 ```
 
 ---
@@ -233,7 +294,7 @@ CI runs both on every push and PR (`.github/workflows/ci.yml`).
 - [x] **Phase 2, Stream processing:** Spark Structured Streaming: validation + quarantine, dedupe on `event_id` with event-time watermark, speed-unit fix, silver vehicle positions
 - [x] **Phase 3, Warehouse and modeling:** dbt on DuckDB (reads the lake in place): GPS→stop matching, `dim_route` SCD2, on-time performance and headway/Excess Wait Time marts, data and unit tests, hourly Airflow DAG
 - [ ] **Phase 3b, Cloud warehouse:** same dbt models on BigQuery (external tables over GCS), provisioned with Terraform
-- [ ] **Phase 4, Production hardening:** Terraform (GCS/BigQuery), data quality tests, alerting, pipeline health metrics, freshness checks (e.g. frozen KTMB positions), small-file compaction
+- [x] **Phase 4, Production hardening:** end-to-end health checks with state-change alerting (Discord/Slack), feed health mart + frozen-feed and trip-match tests, idempotent bronze compaction, Terraform for GCS/BigQuery/IAM validated in CI
 - [ ] **Phase 5, Serving:** dashboard (delay heatmap, worst routes, stop reliability map) and hosted dbt docs
 
 ## Data source and licence

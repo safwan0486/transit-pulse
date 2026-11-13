@@ -21,6 +21,8 @@ from datetime import timedelta
 import pendulum
 from airflow.decorators import dag, task
 
+from transit.alerts import airflow_failure_callback
+
 log = logging.getLogger(__name__)
 
 STATIC_FEEDS = os.getenv("STATIC_FEEDS", "rapid-bus-kl,rapid-bus-mrtfeeder,rapid-rail-kl,ktmb")
@@ -39,6 +41,7 @@ FEED_NAMES = [f.strip() for f in STATIC_FEEDS.split(",") if f.strip()]
         "retries": 3,
         "retry_delay": timedelta(minutes=5),
         "retry_exponential_backoff": True,
+        "on_failure_callback": airflow_failure_callback,  # fires after the last retry
     },
     tags=["gtfs", "static", "bronze", "silver"],
 )

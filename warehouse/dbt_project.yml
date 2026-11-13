@@ -24,6 +24,10 @@ vars:
   gap_ratio: 1.5
   # KTMB positions are frozen placeholders (see README), so no performance metrics.
   performance_feeds: ["rapid-bus-kl", "rapid-bus-mrtfeeder"]
+  # Feed health thresholds (models/marts/monitoring, tests/assert_*).
+  max_pct_frozen: 50
+  min_pct_trip_matched: 90
+  known_frozen_feeds: ["ktmb"]
 
 models:
   transit_pulse:
@@ -39,3 +43,5 @@ models:
         +schema: core
       performance:
         +schema: performance
+      monitoring:
+        +schema: monitoring

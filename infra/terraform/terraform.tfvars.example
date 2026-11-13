@@ -1,0 +1,8 @@
+# Copy to terraform.tfvars (git-ignored) and fill in.
+project_id  = "your-gcp-project-id"
+region      = "asia-southeast1"
+environment = "dev"
+
+# Optional cost guardrail: email alerts at 50/90/100% of this monthly amount.
+# monthly_budget_myr = 50
+# billing_account_id = "XXXXXX-XXXXXX-XXXXXX"

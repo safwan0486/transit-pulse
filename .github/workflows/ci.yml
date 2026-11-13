@@ -41,6 +41,21 @@ jobs:
       - name: Parse project (catches broken refs, YAML and Jinja)
         run: dbt parse
 
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - name: Format check
+        run: terraform fmt -check -diff
+      - name: Validate (no cloud credentials needed)
+        run: terraform init -backend=false -input=false && terraform validate
+
   docker-build:
     runs-on: ubuntu-latest
     steps:

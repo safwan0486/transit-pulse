@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: mart_feed_health_hourly
+    description: >
+      Per feed and hour: events, active vehicles, frozen vehicles (reporting but
+      not moving) and share of positions that match a scheduled trip.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [feed, hour_local]
+    columns:
+      - name: pct_frozen
+        data_tests:
+          - dbt_utils.accepted_range: {min_value: 0, max_value: 100}
+      - name: pct_trip_matched
+        data_tests:
+          - dbt_utils.accepted_range: {min_value: 0, max_value: 100}
