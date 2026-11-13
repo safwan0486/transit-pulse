@@ -1,0 +1,11 @@
+{
+  "identities": [
+    {
+      "name": "transit-local",
+      "credentials": [
+        { "accessKey": "transit", "secretKey": "transit-local-secret" }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

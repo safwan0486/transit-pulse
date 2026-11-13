@@ -1,0 +1,4 @@
+# Versions are pinned by the Airflow constraints file (see Dockerfile)
+boto3
+pyarrow
+requests

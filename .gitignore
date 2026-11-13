@@ -1,0 +1,14 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+data/
+logs/
+# dbt (coming in phase 3)
+target/
+dbt_packages/
+# terraform (coming in phase 4)
+.terraform/
+*.tfstate*

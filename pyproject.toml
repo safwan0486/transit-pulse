@@ -1,0 +1,20 @@
+[project]
+name = "transit-pulse"
+version = "0.1.0"
+description = "Batch + streaming analytics platform for Malaysian public transit (GTFS / GTFS-Realtime)"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["ingestion"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["transit"]
+known-third-party = ["airflow"]
