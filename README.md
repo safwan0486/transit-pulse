@@ -8,8 +8,10 @@ timetables (GTFS static) for Rapid KL, MRT feeder buses and KTMB from
 turns them into answers like:
 
 - Which routes are consistently late, and at what time of day?
-- How reliable is each stop?
+- Do "every 15 minutes" buses actually come every 15 minutes, or bunch up?
 - When is the network most delayed?
+
+![Transit Pulse dashboard](docs/dashboard.png)
 
 ---
 
@@ -30,8 +32,10 @@ turns them into answers like:
                                                      │
                               dbt + DuckDB warehouse (hourly, via Airflow)
                               staging → core facts/dims → performance marts
+                                                     │ export after every build
+                                             gold/*.parquet (in the lake)
                                                      │
-                                    [phase 5] Dashboard
+                              Streamlit dashboard (DuckDB in-memory over Parquet)
 ```
 
 ### Data lake layout
@@ -43,6 +47,7 @@ turns them into answers like:
 | silver | `silver/gtfs_static/<table>/feed=*/dt=*/data.parquet` | Airflow |
 | silver | `silver/vehicle_positions/feed=*/event_date=*/` | Spark Structured Streaming |
 | quarantine | `quarantine/vehicle_positions/processed_date=*/dq_reason=*/` | Spark Structured Streaming |
+| gold | `gold/<mart>.parquet` | dbt `on-run-end` hook, after tests pass |
 
 ### Data quality: what silver guarantees
 
@@ -156,7 +161,25 @@ over the first 2.5 hours).
 | Operator | Timetable style | Metric |
 |---|---|---|
 | MRT feeder buses | Exact time per stop (`stop_times`) | **On-time performance**: delay = observed − scheduled. On time = 1 min early to 5 min late (industry standard). |
-| Rapid KL buses | "Every N minutes" (`frequencies`) | **Headway adherence**: bunching (< 0.5× scheduled gap), gaps (> 1.5×), and **Excess Wait Time**, the extra minutes a rider waits versus the schedule, as used by Transport for London |
+| Rapid KL buses | "Every N minutes" (`frequencies`) | **Headway adherence** between consecutive **departures**: evenly spaced (0.5–1.5× the scheduled gap), bunched (< 0.5×), gaps (> 1.5×), plus **Excess Wait Time**, the extra minutes a rider waits versus the schedule, as used by Transport for London |
+
+#### A metric I got wrong first, and how I caught it
+The first version measured Rapid KL headways **at stops**, from GPS-inferred stop visits. The
+dashboard then showed riders waiting **+27 minutes** longer than promised, which is implausible.
+Digging in:
+
+1. Only **34%** of each trip's stops had a matched visit. Buses report about once a minute while
+   stops are a few hundred meters apart, so most stop passes fall between two pings. Every missed
+   pass made the gap at that stop look twice as long: median **2.04×** the scheduled headway.
+2. The feed also reports each trip's **actual departure time**. Gaps between consecutive
+   departures don't depend on catching a bus near a stop: median **1.23×**.
+3. That still included gaps that started **before data collection began** that day (buses that
+   left and finished unseen). Dropping those gave a median of **1.06×**.
+4. Excess Wait Time stayed high (≈ +13 min), driven by a few 2-hour gaps that may be buses
+   running with GPS off. So the dashboard **leads with the robust share of evenly spaced
+   departures** and shows Excess Wait Time only as detail, with that caveat.
+
+The stop-based model was deleted; `int_frequency_dispatches` documents why.
 
 KTMB is excluded from performance metrics because its positions are frozen placeholders (see above).
 
@@ -177,6 +200,35 @@ Query the warehouse:
 ```bash
 docker compose exec airflow-scheduler /opt/dbt-venv/bin/python -c "import duckdb; duckdb.connect('/opt/airflow/warehouse/transit_pulse.duckdb', read_only=True).sql('select * from performance.mart_route_on_time_daily order by pct_on_time limit 10').show()"
 ```
+
+---
+
+## Dashboard
+
+**http://localhost:8501**: a Streamlit app (`dashboard/`) that reads the **gold** Parquet marts
+and live silver positions straight from the lake with an in-memory DuckDB:
+
+- **Headline KPIs:** MRT feeder on-time share and median delay; Rapid KL evenly spaced and
+  bunched departures; vehicles live now
+- **Live map** of every bus reporting in the last 10 minutes, colored by operator
+- **Feed health:** status per feed with icon + label (KTMB shows as 🧊 Frozen)
+- **Delay heatmap** by hour of day (diverging scale: blue early, gray on time, red late)
+- **Route rankings:** least punctual MRT feeder routes and least regular Rapid KL routes,
+  with hover details and full table views
+
+Design choices:
+- **Gold layer instead of querying the warehouse.** DuckDB allows one writer, so a dashboard
+  reading the warehouse file would hit lock errors whenever dbt runs. dbt exports the serving
+  marts to Parquet after each build (`macros/export_gold.sql`), and only tested data gets there.
+- **Accessible color.** Operator colors are fixed by identity and checked for color vision
+  deficiency (worst pair ΔE 9.2 under deuteranopia). Every color also has a text label or
+  table view, and statuses always pair an icon with a word.
+- **The live map lists before it reads.** Opening every silver file written today took 8 s.
+  Listing today's folder and reading only files from the last 12 minutes takes about 2 s.
+
+**Found while building it: Spark wrote ~10 tiny files a minute.** Each micro-batch's dedupe
+shuffle spread rows over 4 tasks, and each task wrote its own file per feed. Repartitioning by
+the output partition before writing cut that to 2–3 files a minute, one per feed.
 
 ---
 
@@ -251,6 +303,7 @@ docker compose up -d --build
 
 | Service | URL | Login |
 |---------|-----|-------|
+| **Dashboard** | http://localhost:8501 | none |
 | Airflow | http://localhost:8080 | `admin` / `admin` |
 | Redpanda Console (Kafka UI) | http://localhost:8085 | none |
 | SeaweedFS file browser (data lake) | http://localhost:8888/buckets/transit-lake/ | none |
@@ -295,7 +348,8 @@ CI runs both on every push and PR (`.github/workflows/ci.yml`).
 - [x] **Phase 3, Warehouse and modeling:** dbt on DuckDB (reads the lake in place): GPS→stop matching, `dim_route` SCD2, on-time performance and headway/Excess Wait Time marts, data and unit tests, hourly Airflow DAG
 - [ ] **Phase 3b, Cloud warehouse:** same dbt models on BigQuery (external tables over GCS), provisioned with Terraform
 - [x] **Phase 4, Production hardening:** end-to-end health checks with state-change alerting (Discord/Slack), feed health mart + frozen-feed and trip-match tests, idempotent bronze compaction, Terraform for GCS/BigQuery/IAM validated in CI
-- [ ] **Phase 5, Serving:** dashboard (delay heatmap, worst routes, stop reliability map) and hosted dbt docs
+- [x] **Phase 5, Serving:** gold Parquet layer + Streamlit dashboard (live map, feed health, delay heatmap, route rankings)
+- [ ] **Next:** hosted dbt docs, multi-day trends once more history accumulates, BigQuery deployment via the Terraform in `infra/`
 
 ## Data source and licence
 

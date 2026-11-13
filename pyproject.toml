@@ -5,7 +5,7 @@ description = "Batch + streaming analytics platform for Malaysian public transit
 requires-python = ">=3.11"
 
 [tool.pytest.ini_options]
-pythonpath = ["ingestion"]
+pythonpath = ["ingestion", "dashboard"]
 testpaths = ["tests"]
 
 [tool.ruff]
@@ -16,5 +16,5 @@ target-version = "py311"
 select = ["E", "F", "I", "B", "UP"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["transit"]
+known-first-party = ["transit", "data", "theme"]
 known-third-party = ["airflow"]

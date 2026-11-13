@@ -58,39 +58,50 @@ models:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [feed, service_date, hour_local]
 
-  - name: mart_stop_headways
+  - name: mart_dispatch_headways
+    description: >
+      Gaps between consecutive departures on the same Rapid KL route and direction,
+      versus the published frequency.
     columns:
       - name: actual_headway_secs
         data_tests:
           - dbt_utils.accepted_range: {min_value: 0, max_value: 14400, inclusive: true}
+      - name: scheduled_headway_secs
+        data_tests: [not_null]
 
   - name: mart_route_headway_daily
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [feed, service_date, route_id]
+      - dbt_utils.expression_is_true:
+          expression: "round(pct_evenly_spaced + pct_bunched + pct_gaps) = 100"
 
 unit_tests:
   - name: headways_flag_bunching_and_gaps
     description: >
-      20-minute scheduled headway. Bus B arrives 5 min after A (bunched), passes
-      again at 08:30 on a loop (same bus: not a headway), C follows on time,
-      then D comes 40 min later (a gap).
-    model: mart_stop_headways
+      Route U81 promises a bus every 20 min. B departs 5 min after A (bunched),
+      C 20 min after B (on time), D 40 min after C (a gap). E runs in the other
+      direction, so it starts its own sequence and produces no headway. Z left
+      at 06:00, before data collection started (07:30), so the Z→A gap is an
+      artifact of coverage and must be dropped.
+    model: mart_dispatch_headways
     given:
-      - input: ref('fct_stop_arrivals')
+      - input: ref('fct_vehicle_positions')
         format: csv
         rows: |
-          feed,service_date,snapshot_date,route_id,direction_id,stop_id,stop_sequence,trip_id,vehicle_id,observed_ts,observed_ts_local,schedule_type,is_first_stop,is_last_stop
-          rapid-bus-kl,2026-11-13,2026-11-11,U81,0,S1,5,t0,BUS_A,2026-11-13 00:00:00,2026-11-13 08:00:00,frequency,false,false
-          rapid-bus-kl,2026-11-13,2026-11-11,U81,0,S1,5,t0,BUS_B,2026-11-13 00:05:00,2026-11-13 08:05:00,frequency,false,false
-          rapid-bus-kl,2026-11-13,2026-11-11,U81,0,S1,5,t0,BUS_B,2026-11-13 00:30:00,2026-11-13 08:30:00,frequency,false,false
-          rapid-bus-kl,2026-11-13,2026-11-11,U81,0,S1,5,t0,BUS_C,2026-11-13 00:50:00,2026-11-13 08:50:00,frequency,false,false
-          rapid-bus-kl,2026-11-13,2026-11-11,U81,0,S1,5,t0,BUS_D,2026-11-13 01:30:00,2026-11-13 09:30:00,frequency,false,false
-      - input: ref('stg_gtfs__frequencies')
+          feed,event_date_local,event_ts_local
+          rapid-bus-kl,2026-11-13,2026-11-13 07:30:00
+          rapid-bus-kl,2026-11-13,2026-11-13 09:10:00
+      - input: ref('int_frequency_dispatches')
         format: csv
         rows: |
-          feed,snapshot_date,trip_id,headway_secs
-          rapid-bus-kl,2026-11-11,t0,1200
+          feed,service_date,route_id,direction_id,trip_id,vehicle_id,dispatch_ts_local,scheduled_headway_secs
+          rapid-bus-kl,2026-11-13,U81,0,t0,BUS_Z,2026-11-13 06:00:00,1200
+          rapid-bus-kl,2026-11-13,U81,0,t0,BUS_A,2026-11-13 08:00:00,1200
+          rapid-bus-kl,2026-11-13,U81,0,t0,BUS_B,2026-11-13 08:05:00,1200
+          rapid-bus-kl,2026-11-13,U81,0,t0,BUS_C,2026-11-13 08:25:00,1200
+          rapid-bus-kl,2026-11-13,U81,0,t0,BUS_D,2026-11-13 09:05:00,1200
+          rapid-bus-kl,2026-11-13,U81,1,t1,BUS_E,2026-11-13 08:10:00,1200
     expect:
       format: csv
       rows: |

@@ -8,7 +8,11 @@ macro-paths: ["macros"]
 test-paths: ["tests"]
 clean-targets: ["target", "dbt_packages"]
 
+on-run-end:
+  - "{{ export_gold() }}"
+
 vars:
+  lake_bucket: transit-lake
   # Malaysia has no daylight saving, so a fixed offset is exact.
   local_utc_offset_hours: 8
   # A GPS ping counts as "at a stop" within this distance.

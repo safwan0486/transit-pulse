@@ -1,5 +1,6 @@
-/*
-Daily headway reliability per route (frequency-based service).
+﻿/*
+Daily headway reliability per route (frequency-based service), from actual
+departure times (see int_frequency_dispatches for why not stop passes).
 
 Excess Wait Time (EWT) is the standard metric for "turn up and go" service
 (used by e.g. Transport for London):
@@ -16,6 +17,9 @@ select
     round(median(h.headway_ratio), 2)                                as median_headway_ratio,
     round(100 * avg(case when h.is_bunched then 1 else 0 end), 1)    as pct_bunched,
     round(100 * avg(case when h.is_gap then 1 else 0 end), 1)        as pct_gaps,
+    -- robust headline: share of departures neither bunched nor a gap
+    round(100 * avg(case when not h.is_bunched and not h.is_gap then 1 else 0 end), 1)
+                                                                     as pct_evenly_spaced,
     round(sum(h.actual_headway_secs ^ 2) / (2 * sum(h.actual_headway_secs)) / 60, 1)
                                                                      as avg_wait_min,
     round(sum(h.scheduled_headway_secs ^ 2) / (2 * sum(h.scheduled_headway_secs)) / 60, 1)
@@ -25,7 +29,7 @@ select
          - sum(h.scheduled_headway_secs ^ 2) / (2 * sum(h.scheduled_headway_secs))) / 60,
         1
     )                                                                as excess_wait_min
-from {{ ref('mart_stop_headways') }} h
+from {{ ref('mart_dispatch_headways') }} h
 left join {{ ref('dim_route') }} r
     on  r.feed = h.feed
     and r.route_id = h.route_id

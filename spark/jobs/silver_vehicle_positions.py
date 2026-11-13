@@ -71,6 +71,10 @@ def main() -> None:
 
     (
         to_silver(events, watermark)
+        # Dedupe shuffles rows over SPARK_SHUFFLE_PARTITIONS tasks, and each task
+        # writes its own file per output partition: ~10 tiny files a minute.
+        # Grouping by the partition column first gives one file per feed per batch.
+        .repartition("feed", "event_date")
         .writeStream.queryName("silver_vehicle_positions")
         .format("parquet")
         .outputMode("append")
@@ -82,6 +86,7 @@ def main() -> None:
     )
     (
         to_quarantine(events)
+        .coalesce(1)  # a handful of rows per batch: one file is plenty
         .writeStream.queryName("quarantine_vehicle_positions")
         .format("parquet")
         .outputMode("append")

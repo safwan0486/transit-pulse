@@ -134,6 +134,19 @@ services:
       lake:
         condition: service_healthy
 
+  # ---------------------------------------------------------------- serving
+  dashboard:
+    build: ./dashboard
+    env_file: .env
+    environment:
+      S3_ENDPOINT_HOST: lake:8333
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+    depends_on:
+      lake:
+        condition: service_healthy
+
   # ---------------------------------------------------------------- orchestration
   airflow-db:
     image: postgres:16

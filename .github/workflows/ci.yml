@@ -63,6 +63,6 @@ jobs:
       - name: Validate compose file
         run: cp .env.example .env && docker compose config --quiet
       - name: Build images
-        run: docker compose build producer airflow-init spark-streaming
+        run: docker compose build producer airflow-init spark-streaming dashboard
       - name: Spark transform tests
         run: docker compose run --rm --no-deps spark-streaming python3 -m pytest -v tests
